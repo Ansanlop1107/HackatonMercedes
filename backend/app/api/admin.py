@@ -135,7 +135,7 @@ async def list_logs(consumer_id: Optional[str] = None, limit: int = 50):
         cursor = conn.cursor()
         if consumer_id:
             cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache 
+                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason
                 FROM logs 
                 WHERE consumer_id = ?
                 ORDER BY id DESC 
@@ -143,7 +143,7 @@ async def list_logs(consumer_id: Optional[str] = None, limit: int = 50):
             """, (consumer_id, limit))
         else:
             cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache 
+                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason
                 FROM logs 
                 ORDER BY id DESC 
                 LIMIT ?
@@ -192,18 +192,15 @@ async def get_stats():
         total_spend = row["total_spend"] if row and row["total_spend"] is not None else 0.0
         total_budget = row["total_budget"] if row and row["total_budget"] is not None else 0.0
         
-        cursor.execute("SELECT COUNT(*) as total_calls, SUM(cost) as total_cost, SUM(saved_by_cache) as cache_hits FROM logs")
+        cursor.execute("SELECT COUNT(*) as total_calls, SUM(cost) as total_cost, SUM(saved_by_cache) as cache_hits, SUM(savings) as total_savings FROM logs")
         row = cursor.fetchone()
         total_calls = row["total_calls"] if row and row["total_calls"] is not None else 0
         total_cost = row["total_cost"] if row and row["total_cost"] is not None else 0.0
         cache_hits = row["cache_hits"] if row and row["cache_hits"] is not None else 0
         cache_misses = total_calls - cache_hits
         
-        # Estimar el ahorro debido a la caché
-        cursor.execute("SELECT AVG(cost) as avg_cost FROM logs WHERE saved_by_cache = 0")
-        avg_cost_row = cursor.fetchone()
-        avg_cost_miss = avg_cost_row["avg_cost"] if avg_cost_row and avg_cost_row["avg_cost"] is not None else 0.005
-        saved_cost = cache_hits * avg_cost_miss
+        # Calcular el ahorro total real acumulado en la base de datos
+        saved_cost = row["total_savings"] if row and row["total_savings"] is not None else 0.0
 
         # 2. Detalle por departamento
         cursor.execute("SELECT id, budget, current_spend FROM consumers")

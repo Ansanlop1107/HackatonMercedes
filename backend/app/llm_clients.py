@@ -58,9 +58,10 @@ async def llamar_proveedor_ia(model_name: str, prompt: str):
         }
 
     except Exception as e:
-        logger.error(f"Error crítico en LiteLLM: {str(e)}")
+        error_msg = f"Error en el proveedor de IA ({type(e).__name__}): {str(e)}. Petición interrumpida."
+        logger.error(f"Error crítico en LiteLLM: {error_msg}")
         return {
-            "response": "Error en el proveedor de IA. Petición interrumpida.",
+            "response": error_msg,
             "cost_usd": 0.0,
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         }

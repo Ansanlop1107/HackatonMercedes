@@ -1,195 +1,132 @@
-# AI FinOps Gateway - Guia de Arranque (Backend + Frontend)
+# 🚀 AI FinOps Proxy — Smart Gateway para Gobernanza de IA
 
-Este workspace contiene dos proyectos separados dentro del mismo repositorio:
-
-- `backend/`: API proxy FinOps construida con FastAPI.
-- `frontend/`: portal web construido con React + Vite.
-
-La idea es ejecutar ambos de forma local y exponer el backend con ngrok para que el frontend consuma una URL publica HTTPS.
+> *La capa de control y optimización de costes definitiva para empresas que consumen IA Generativa.*
 
 ---
 
-## 1) Arquitectura rapida
+## 📖 Visión General
 
-1. El backend corre en local (puerto `8000`) y ofrece endpoints como:
-	 - `POST /v1/chat/completions`
-	 - `POST /v1/admin/login`
-	 - `GET /v1/admin/stats`
-2. ngrok publica ese backend local en una URL HTTPS.
-3. El frontend usa esa URL de ngrok como `API_URL`.
+A medida que el uso de LLMs crece en las empresas, también lo hacen los costes ocultos, el "vendor lock-in" y los riesgos de seguridad. **AI FinOps Proxy** es un API Gateway inteligente (Reverse Proxy) que se interpone entre los usuarios internos y múltiples proveedores de IA (OpenAI, Anthropic, Groq, Ollama). 
+
+Su misión es clara: **Interceptar, Proteger, Enrutar inteligentemente y Auditar** cada petición para maximizar el ahorro, garantizar la disponibilidad y proteger los datos sensibles.
 
 ---
 
-## 2) Prerrequisitos
+## 🛠️ Tecnologías Utilizadas
 
-Instala estas herramientas antes de empezar:
-
-- Docker Desktop (con WSL2 en Windows).
-- Python 3.10+.
-- Node.js 18+ y npm.
-- ngrok (cuenta gratuita).
-
-Opcional (recomendado para pruebas del starter):
-
-- Task (`task`) y jq.
-
----
-
-## 3) Levantar proveedores LLM locales (Docker)
-
-El backend enruta modelos locales usando URLs por defecto:
-
-- Provider A: `http://localhost:11434`
-- Provider B: `http://localhost:11435`
-
-Desde la carpeta `backend`:
-
-```powershell
-cd backend
-docker compose up -d
-```
-
-Verifica que los contenedores estan activos:
-
-```powershell
-docker ps
-```
-
-Si es la primera vez con Ollama, puede tardar por descarga de imagen/modelos.
-
----
-
-## 4) Arrancar el backend (FastAPI)
-
-### 4.1 Crear y activar entorno virtual (Windows PowerShell)
-
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 4.2 Instalar dependencias Python
-
-En este repo no hay `requirements.txt`, asi que instalalas manualmente:
-
-```powershell
-pip install fastapi uvicorn litellm python-dotenv pandas
-```
-
-### 4.3 Ejecutar API
-
-```powershell
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Comprobaciones:
-
-- Health: `http://localhost:8000/health`
-- Swagger: `http://localhost:8000/docs`
-
----
-
-## 5) Exponer el backend con ngrok
-
-En otra terminal (manteniendo el backend encendido):
-
-```powershell
-ngrok http 8000
-```
-
-ngrok te mostrara una URL publica, por ejemplo:
-
-`https://tu-subdominio.ngrok-free.dev`
-
-Esa sera la base URL del proxy para el frontend.
-
----
-
-## 6) Conectar frontend con el proxy (ngrok)
-
-Abre `frontend/src/App.jsx` y actualiza la constante `API_URL` con la URL HTTPS de ngrok.
-
-Ejemplo:
-
-```jsx
-const API_URL = 'https://tu-subdominio.ngrok-free.dev';
-```
-
-Nota:
-
-- El frontend ya incluye la cabecera `ngrok-skip-browser-warning: true` en `frontend/src/services/apiFetch.js`, por lo que no debes hacer ajustes adicionales para ese warning.
-
----
-
-## 7) Arrancar el frontend (React + Vite)
-
-Desde la carpeta `frontend`:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Abre:
-
-- `http://localhost:5173`
-
----
-
-## 8) Flujo recomendado de arranque (orden)
-
-1. Levantar Docker providers (`backend/docker-compose.yml`).
-2. Levantar FastAPI en `localhost:8000`.
-3. Levantar ngrok apuntando a `8000`.
-4. Pegar URL de ngrok en `frontend/src/App.jsx`.
-5. Levantar frontend con Vite.
-
----
-
-## 9) Credenciales y uso rapido
-
-Login administrador:
-
-- usuario: `admin`
-- password: `admin`
-
-Login de departamento:
-
-- usuario: id del departamento existente (ej. `equipo-marketing`)
-- password: mismo valor que el usuario
-
----
-
-## 10) Troubleshooting
-
-### Error de conexion en frontend
-
-- Revisa que `API_URL` en `frontend/src/App.jsx` sea exactamente la URL activa de ngrok.
-- Si reiniciaste ngrok, su URL cambia: actualiza `API_URL` y recarga frontend.
-
-### El backend no responde en `:8000`
-
-- Verifica que el entorno virtual este activo.
-- Revisa logs de uvicorn en la terminal del backend.
-
-### Conflicto de puertos 11434/11435
-
-- Cierra otros servicios Ollama locales o cambia puertos en `backend/docker-compose.yml`.
-
-### CORS / bloqueo navegador
-
-- Este backend tiene CORS abierto (`allow_origins=["*"]`).
-- Si aparece warning de ngrok, el frontend ya envia `ngrok-skip-browser-warning`.
-
----
-
-## 11) Estructura del monorepo
+### Capas del Sistema
 
 ```text
-HackatonFinal/
-	backend/    # Proxy FastAPI + SQLite + reglas FinOps
-	frontend/   # Portal React/Vite (dashboard, playground, login)
+┌────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND PORTAL                           │
+│  [ React 19 ]   [ Vite 8 ]   [ Lucide Icons ]   [ CSS Glassmorphism ]  │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    │ HTTP / HTTPS (ngrok)
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                             BACKEND ENGINE                             │
+│       [ Python 3.10+ ]   [ FastAPI ]   [ Uvicorn ]   [ LiteLLM ]       │
+└───────────┬───────────────────────┬───────────────────────┬────────────┘
+            │                       │                       │
+┌───────────▼───────────┐ ┌─────────▼───────────┐ ┌─────────▼───────────┐
+│     DATABASE LAYER    │ │    LOCAL PROVIDERS  │ │    CLOUD PROVIDERS  │
+│      [ SQLite 3 ]     │ │   [ Ollama (Docker) ] │ │  [ Groq, OpenAI,   │
+│   (Logs & Budgets)    │ │(Llama 3.2 & Mistral)│ │   Anthropic, etc. ] │
+└───────────────────────┘ └─────────────────────┘ └─────────────────────┘
 ```
 
+### Stack Tecnológico (Badges)
+
+- **Frontend:**  
+  ![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+  ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+  ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
+  ![Lucide](https://img.shields.io/badge/Lucide_Icons-FF4081?style=flat-square)  
+  *Portal web con interfaz premium reactiva, panel translúcido (`CSS Glassmorphism`) y modo oscuro.*
+
+- **Backend & Proxy Core:**  
+  ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+  ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+  ![Uvicorn](https://img.shields.io/badge/Uvicorn-222222?style=flat-square)
+  ![LiteLLM](https://img.shields.io/badge/LiteLLM-1E90FF?style=flat-square)  
+  *Motor del proxy API de alto rendimiento con enrutador unificado asíncrono.*
+
+- **Base de Datos & Seguridad:**  
+  ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)  
+  *Base de datos persistente SQLite 3 para control de presupuestos, auditoría histórica (logs) y caché semántica. DLP mediante expresiones regulares.*
+
+- **Modelos locales (Docker):**  
+  ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+  ![Ollama](https://img.shields.io/badge/Ollama-000000?style=flat-square)  
+  *Contenedores Docker para levantar instancias locales de Ollama con Llama3.2:3b y Mistral:7b.*
+
+---
+
+## 🏗️ Arquitectura de Alto Nivel
+
+El sistema se divide en tres componentes principales:
+
+1. **Frontend Enriquecido (Cliente):** Envía prompts acompañados de un contexto de consumidor y metadatos financieros.
+2. **Core Proxy (Smart Router):** Un pipeline de 6 capas basado en el patrón *Chain of Responsibility* que toma decisiones en tiempo real sobre cada llamada de IA.
+3. **FinOps Admin Dashboard:** Panel de control en tiempo real para visualizar consumo, ahorro (*Total Savings*), bloqueos de seguridad y predicciones de agotamiento de presupuesto.
+
+---
+
+## 🧠 Pipeline de Orquestación (El "Cerebro" del Proxy)
+
+Cada solicitud enviada por un usuario pasa por un **flujo estricto de 6 fases** antes de llegar a cualquier modelo.
+
+### 1. Capa de Seguridad y Cumplimiento (Security & PII Shield)
+- **Anti-Prompt Injection:** Bloquea intentos de manipulación del system prompt mediante heurísticas de seguridad en la entrada.
+- **Prevención de Fuga de Datos (DLP):** Escanea el contenido del prompt buscando información personalmente identificable o PII (tarjetas de crédito, DNI, emails, matrículas, bastidores VIN, teléfonos, IPs privadas). Si detecta datos sensibles, marca la petición para ser procesada **exclusivamente por modelos locales** (ej. Ollama), garantizando la privacidad y el cumplimiento regulatorio (GDPR/DLP).
+
+### 2. Capa de Caché Semántica
+- Comprueba si la misma petición (o una idéntica) ha sido procesada recientemente.
+- **Impacto:** Si hay coincidencia (Cache Hit), devuelve la respuesta almacenada inmediatamente con coste $0.00 y latencia mínima. El ahorro generado se suma a la métrica global de *Total Savings*.
+
+### 3. Gatekeeper FinOps (Control de Presupuesto)
+- Verifica la identidad del consumidor (`X-Consumer-ID`).
+- Evalúa si el departamento o equipo tiene saldo suficiente en la base de datos de SQLite. Si el presupuesto se ha agotado, la petición se bloquea de inmediato (HTTP 429), previniendo sobrecostes no autorizados.
+
+### 4. Motor de Enrutamiento Multidimensional (Smart Routing)
+El núcleo inteligente del proxy. Evalúa múltiples dimensiones de la solicitud y elige el modelo óptimo basándose en las siguientes reglas del enrutador:
+
+| Dimensión Analizada | Criterio / Regla de Enrutamiento | Proveedor/Modelo Destino |
+| :--- | :--- | :--- |
+| **Privacidad (PII)** | Si el prompt contiene datos sensibles detectados por DLP. | 🔒 **Ollama (Modelo Local Llama 3.2)** |
+| **Presupuesto Agotado > 80%** | Si el consumo del departamento supera el 80% de su límite asignado. | 💰 **Ollama Local (Economía Forzada)** |
+| **Prioridad Experimental** | Si el consumidor pertenece al departamento de laboratorios / experimentos. | 💰 **Ollama Local (Bajo Coste)** |
+| **Uso Normal (Standard)** | Consumidor estándar, prompt limpio y presupuesto holgado. | ⚡ **gpt-5.4-mini (Estándar)** |
+
+### 5. Resiliencia y Fallback (Alta Disponibilidad)
+- Si el proveedor seleccionado sufre una caída de red o devuelve un error 5xx, el proxy realiza un reintento automático (retry) redirigiendo la petición hacia el **segundo mejor modelo** local o cloud, garantizando que el usuario siempre reciba respuesta.
+
+### 6. FinOps Tracking y Auditoría
+- Tras obtener la respuesta, el proxy extrae el uso exacto de tokens de entrada (`prompt_tokens`) y salida (`completion_tokens`).
+- Calcula el coste real de la llamada según tarifas del proveedor y actualiza el gasto del departamento.
+- Registra en SQLite el log histórico detallado indicando las reglas aplicadas en el enrutamiento y el ahorro generado.
+
+---
+
+## 📊 Dashboard de Administración y Análisis predictivo
+
+La interfaz de administración proporciona visibilidad total C-Level:
+
+- **Métrica Estrella - Total Savings:** Un contador en tiempo real que demuestra el ROI del proxy, acumulando el coste ahorrado gracias al uso de la caché semántica y al desvío inteligente hacia modelos locales más baratos.
+- **Gráfica Predictiva (Regresión Lineal):** Analiza la tendencia de gasto diaria de cada departamento y predice en qué fecha exacta se quedarán sin presupuesto si continúan con el mismo ritmo de consumo.
+- **Audit Trail & Alertas:** Tabla interactiva que registra todos los bloqueos por seguridad (Prompt Injection), desvíos por privacidad (PII) y peticiones bloqueadas por presupuesto superado.
+
+---
+
+## 📂 Estructura del Repositorio
+
+El monorepo está dividido en dos grandes carpetas:
+
+- [**`backend/`**](file:///d:/HackatonFinal/backend): Código del servidor FastAPI, configuración de la base de datos SQLite (`app/finops.db`), el Decision Router y el cliente LiteLLM.
+- [**`frontend/`**](file:///d:/HackatonFinal/frontend): Interfaz gráfica modular construida en React + Vite.
+
+Para ver las guías paso a paso de instalación y arranque para cada componente, por favor accede a sus respectivos archivos README:
+
+1. ⚙️ **Instalación del Servidor:** [**Guía de Instalación del Backend (FastAPI)**](file:///d:/HackatonFinal/backend/README.md)
+2. 💻 **Instalación del Cliente:** [**Guía de Instalación del Frontend (React)**](file:///d:/HackatonFinal/frontend/README.md)

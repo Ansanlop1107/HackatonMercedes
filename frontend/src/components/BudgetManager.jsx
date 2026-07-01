@@ -146,6 +146,41 @@ export default function BudgetManager({
                     transition: 'width 0.4s ease-out'
                   }}></div>
                 </div>
+
+                {/* Predicción de Agotamiento de Presupuesto */}
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: isOverBudget ? 'var(--color-error)' : spendPercentage > 85 ? '#fbcfe8' : 'var(--text-muted)',
+                  marginTop: '2px',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>Predicción FinOps:</span>
+                  <span style={{ fontWeight: '600' }}>
+                    {(() => {
+                      if (isOverBudget) return 'Presupuesto Agotado 🚨';
+                      
+                      // Filtrar logs de este departamento específico
+                      const deptLogs = stats.daily_logs ? stats.daily_logs.filter(log => log.consumer_id === dept.id) : [];
+                      if (deptLogs.length === 0) return 'Sin historial de consumo';
+                      
+                      // Calcular gasto diario promedio
+                      const totalCost = deptLogs.reduce((acc, curr) => acc + curr.daily_cost, 0);
+                      const uniqueDays = [...new Set(deptLogs.map(log => log.day))].length || 1;
+                      const avgDaily = totalCost / uniqueDays;
+                      
+                      if (avgDaily <= 0) return 'Consumo inactivo';
+                      
+                      const remainingBudget = dept.budget - dept.current_spend;
+                      const daysLeft = Math.ceil(remainingBudget / avgDaily);
+                      
+                      const targetDate = new Date();
+                      targetDate.setDate(targetDate.getDate() + daysLeft);
+                      
+                      return `Agotamiento: ${targetDate.toLocaleDateString()} (en ${daysLeft} días)`;
+                    })()}
+                  </span>
+                </div>
               </div>
             );
           })}

@@ -52,101 +52,135 @@ class DecisionRouter:
         current_spend: float,
         budget: float,
         has_justification: bool,
-        routing_restriction: str = "delegate_to_finops"
-    ) -> Tuple[str, str, List[str]]:
+        routing_restriction: str = "delegate_to_finops",
+        file_name: str = None,
+        file_type: str = None,
+        file_size: int = 0,
+        file_content: str = None,
+        require_json: bool = False,
+        urgency: str = "real-time"
+    ) -> Tuple[str, str, List[str], str]:
         """
-        Evalúa de forma secuencial las reglas FinOps (WHO, WHAT, WHEN, WHY) y
-        retorna el modelo final, el prompt optimizado y la lista de acciones aplicadas.
+        Evalúa de forma secuencial y multidimensional las reglas FinOps (Security, WHO, WHAT, WHEN, WHY, NLP)
+        y selecciona el modelo de destino óptimo devolviendo la justificación detallada de la decisión.
         
         Retorna:
-          (final_model, final_prompt, applied_actions)
+          (final_model, final_prompt, applied_actions, routing_reason)
         """
         applied_actions = []
         final_prompt = prompt
+        routing_reason = "Enrutamiento estándar óptimo."
         
-        # Validar existencia del modelo solicitado en nuestra configuración
+        # Validar existencia del modelo solicitado
         if requested_model not in MODELS_PROPERTIES:
-            requested_model = "gpt-5.4-mini"  # Fallback a estándar
+            requested_model = "gpt-5.4-mini"
             
         final_model = requested_model
+        priority = CONSUMER_PRIORITIES.get(consumer_id, "standard")
 
-        # --- REGLA: CAPA 1 - SEGURIDAD (DLP force_local) ---
+        # --- REGLA A: Capa de Privacidad y DLP (Security compliance) ---
         if routing_restriction == "force_local":
             applied_actions.append("force_local_model")
-            # Si el modelo solicitado ya es local, se mantiene. Si no, se fuerza llama3.2:3b
-            if requested_model in ["llama3.2:3b", "mistral:7b"]:
-                final_model = requested_model
-            else:
-                final_model = "llama3.2:3b"
-            logger.info(f"[ROUTER] [SECURITY] Restricción 'force_local' activa. Enrutando a modelo local '{final_model}'.")
-            return final_model, final_prompt, applied_actions
-        
-        # 1. Obtener la prioridad del consumidor (WHO)
-        priority = CONSUMER_PRIORITIES.get(consumer_id, "standard")
-        
-        # --- REGLA: WHEN (Presupuesto acumulado > 80%) ---
+            final_model = "llama3.2:3b"
+            routing_reason = "🔒 DLP: Contiene datos personales o PII. Forzado modelo local Llama3.2 por cumplimiento GDPR."
+            logger.info(f"[ROUTER] [RULE A] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
+
+        # --- REGLA B: Presupuesto agotado o límite de ahorro (WHEN) ---
         budget_usage = (current_spend / budget) if budget > 0 else 0.0
         if budget_usage > 0.80:
             applied_actions.append("activate_savings_mode")
-            # Activación forzada de ahorro: enruta a modelo económico local
             final_model = "llama3.2:3b"
-            logger.warning(f"[ROUTER] [WHEN] Ahorro Activo (budget_usage = {budget_usage*100:.1f}%). Forzando economía.")
-            return final_model, final_prompt, applied_actions
+            routing_reason = "⚠️ WHEN: Gasto departamental supera el 80% del presupuesto. Forzado modelo económico local para ahorro."
+            logger.warning(f"[ROUTER] [RULE B] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
 
-        # --- REGLA: WHO (Prioridad del consumidor) ---
-        if priority == "critical":
-            applied_actions.append("allow")
-            # El crítico tiene permiso inicial para usar lo solicitado, pero sigue evaluando tokens
-        elif priority == "experimental":
+        # --- REGLA C: Prioridad de Consumidor (WHO) ---
+        if priority == "experimental":
             applied_actions.append("force_low_cost_model")
             final_model = "llama3.2:3b"
-            logger.info("[ROUTER] [WHO] Consumidor Experimental detectado. Forzando modelo económico.")
-            # Forzamos modelo económico y detenemos degradaciones adicionales
-        else:  # priority == "standard"
-            applied_actions.append("reroute")
-            # Standard se le permite avanzar pero está sujeto a re-enrutamiento por costes/justificación
+            routing_reason = "🧪 WHO: Consumidor de laboratorio experimental. Forzado modelo económico local."
+            logger.info(f"[ROUTER] [RULE C] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
 
-        # --- REGLA: WHAT (Tokens estimados) ---
-        # Estimar tokens basado en que 1 palabra ≈ 1.3 tokens en promedio
-        words = len(final_prompt.split())
-        estimated_tokens = int(words * 1.3)
-        
-        if estimated_tokens > 32000:
-            # Acción obligatoria: Requerir justificación (se validará en el controlador)
-            applied_actions.append("request_justification")
-        elif estimated_tokens > 8000:
-            # Si supera 8,000 tokens (límite soft) pero no 32,000, simplemente registramos la acción.
-            # No truncamos ni reescribimos el prompt para no perder información valiosa del usuario.
-            applied_actions.append("auto_prompt_rewrite")
-            logger.info(f"[ROUTER] [WHAT] Prompt supera el límite blando de 8000 tokens ({estimated_tokens} tokens). No se realiza truncado por política de integridad de datos.")
-
-        # Si el modelo final ya fue forzado a económico por prioridad experimental, omitimos reglas de premium/coste
-        if final_model == "llama3.2:3b":
-            return final_model, final_prompt, applied_actions
-
-        # --- REGLA: WHY (Justificación de modelo Premium) ---
-        props = MODELS_PROPERTIES[final_model]
-        if props["tier"] == "premium" and not has_justification:
-            applied_actions.append("degrade_model")
-            # Degradación a estándar gpt-5.4-mini
-            final_model = "gpt-5.4-mini"
-            logger.info(f"[ROUTER] [WHY] Modelo Premium solicitado sin justificación. Degradando a '{final_model}'.")
-            props = MODELS_PROPERTIES[final_model]  # Actualizar propiedades
-
-        # --- REGLA: WHAT (Límite de Coste por Petición > $0.10) ---
-        # Estimar coste considerando un baseline de 500 tokens de salida para la estimación previa
-        est_input_cost = (estimated_tokens / 1000.0) * props["input_cost"]
-        est_output_cost = (500 / 1000.0) * props["output_cost"]
-        estimated_cost = est_input_cost + est_output_cost
-        
-        if estimated_cost > 0.10 and priority != "critical":
-            # Si supera los $0.10 y no es crítico, degradamos/re-enrutamos a un modelo más barato
-            old_model = final_model
-            if props["tier"] == "premium":
+        # --- REGLA D: Modalidad del Archivo Adjunto ---
+        if file_type:
+            # 1. Imagen -> GPT-5.4-mini (con soporte visión)
+            if file_type.startswith("image/"):
                 final_model = "gpt-5.4-mini"
-            elif props["tier"] == "standard":
-                final_model = "llama-3.1-8b-instant"
-            applied_actions.append("reroute_cost_threshold")
-            logger.info(f"[ROUTER] [WHAT] Coste estimado ${estimated_cost:.4f} supera $0.10. Re-enrutando '{old_model}' -> '{final_model}'.")
+                applied_actions.append("route_vision_model")
+                routing_reason = f"👁️ MODALIDAD: Adjunta archivo de imagen ({file_name}). Enrutado a GPT-5.4-mini con soporte de visión."
+                logger.info(f"[ROUTER] [RULE D - VISION] {routing_reason}")
+                return final_model, final_prompt, applied_actions, routing_reason
+                
+            # 2. Análisis de datos (CSV / Excel) -> gpt-5.4-mini o claude-opus-4.7 (según complejidad)
+            elif any(t in file_type for t in ["csv", "excel", "sheet", "spreadsheet"]):
+                # Si es compleja y tiene justificación, usamos Claude Opus
+                nlp_text = (prompt + " " + (file_content or "")).lower()
+                complex_keywords = ["código", "algoritmo", "matemática", "lógica", "refactor", "optimize", "sql", "excel"]
+                is_complex = any(kw in nlp_text for kw in complex_keywords)
+                
+                if is_complex and has_justification:
+                    final_model = "claude-opus-4.7"
+                    applied_actions.append("route_premium_analytical")
+                    routing_reason = f"📊 MODALIDAD: Análisis de datos complejos ({file_name}). Enrutado a Claude Opus."
+                else:
+                    final_model = "gpt-5.4-mini"
+                    applied_actions.append("route_analytical_model")
+                    routing_reason = f"📊 MODALIDAD: Análisis de datos ({file_name}). Enrutado a GPT-5.4-mini (Code Interpreter)."
+                logger.info(f"[ROUTER] [RULE D - DATA] {routing_reason}")
+                return final_model, final_prompt, applied_actions, routing_reason
 
-        return final_model, final_prompt, applied_actions
+        # --- REGLA E: Tamaño del Contexto (Context Window) ---
+        prompt_tokens = len(prompt.split()) * 1.3
+        file_tokens = (len(file_content.split()) * 1.3) if file_content else (file_size / 4.0 if file_size else 0)
+        total_tokens = int(prompt_tokens + file_tokens)
+        
+        if total_tokens > 8000:
+            final_model = "llama-3.1-8b-instant"  # Groq 128k context y coste mínimo
+            applied_actions.append("route_long_context_model")
+            routing_reason = f"📚 CONTEXTO: Contexto largo ({total_tokens} tokens > 8k). Enrutado a Llama 3.1 8b en Groq (128k window)."
+            logger.info(f"[ROUTER] [RULE E] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
+
+        # --- REGLA F: Formato Estricto (JSON mode) ---
+        if require_json:
+            final_model = "llama-3.1-8b-instant"
+            applied_actions.append("route_json_model")
+            routing_reason = "⚙️ FORMATO: Requisito JSON estricto. Enrutado a Llama 3.1 8b (JSON mode)."
+            logger.info(f"[ROUTER] [RULE F] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
+
+        # --- REGLA G: Requisito de Latencia / Urgencia ---
+        if urgency == "real-time":
+            final_model = "llama-3.1-8b-instant"  # Groq LPU fast execution
+            applied_actions.append("route_low_latency_model")
+            routing_reason = "⚡ LATENCIA: Requisito urgente (real-time). Enrutado a Groq LPU (Llama 3.1)."
+            logger.info(f"[ROUTER] [RULE G] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
+
+        # --- REGLA H: Complejidad Semántica NLP ---
+        nlp_text = (prompt + " " + (file_content or "")).lower()
+        complex_keywords = ["código", "algoritmo", "matemática", "lógica", "refactor", "optimize", "complejo", "integral", "recursivo", "sql", "python", "clase", "función"]
+        is_complex = any(kw in nlp_text for kw in complex_keywords)
+        
+        if is_complex or priority == "standard":
+            # Para tareas complejas en prioridad estándar
+            if is_complex:
+                if has_justification:
+                    final_model = "claude-opus-4.7"
+                    applied_actions.append("route_premium_complexity")
+                    routing_reason = "🧠 NLP: Tarea compleja/lógica con justificación. Enrutado a Claude Opus."
+                else:
+                    final_model = "gpt-5.4-mini"
+                    applied_actions.append("degrade_model")
+                    routing_reason = "🧠 NLP: Tarea compleja sin justificación. Degradado a GPT-5.4-mini."
+                logger.info(f"[ROUTER] [RULE H] {routing_reason}")
+                return final_model, final_prompt, applied_actions, routing_reason
+
+        # Tareas sencillas / por defecto
+        final_model = "llama-3.1-8b-instant"
+        applied_actions.append("route_basic_simplicity")
+        routing_reason = "💰 NLP: Tarea estándar/sencilla. Enrutado a modelo económico Llama 3.1 8b en Groq."
+        logger.info(f"[ROUTER] [RULE H - DEFAULT] {routing_reason}")
+        return final_model, final_prompt, applied_actions, routing_reason

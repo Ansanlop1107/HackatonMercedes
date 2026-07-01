@@ -125,6 +125,8 @@ export default function AuditLogsTable({ logs, stats }) {
               <th style={{ padding: '12px 8px' }}>Prompt</th>
               <th style={{ padding: '12px 8px' }}>Modelo Usado</th>
               <th style={{ padding: '12px 8px' }}>Coste (USD)</th>
+              <th style={{ padding: '12px 8px' }}>Ahorro (USD)</th>
+              <th style={{ padding: '12px 8px' }}>Motivo de Enrutado</th>
               <th style={{ padding: '12px 8px' }}>Caché</th>
             </tr>
           </thead>
@@ -133,7 +135,7 @@ export default function AuditLogsTable({ logs, stats }) {
               <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }}>
                 <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>{log.timestamp}</td>
                 <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{log.consumer_id}</td>
-                <td style={{ padding: '12px 8px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.prompt}>
+                <td style={{ padding: '12px 8px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.prompt}>
                   {log.prompt}
                 </td>
                 <td style={{ padding: '12px 8px' }}>
@@ -143,11 +145,17 @@ export default function AuditLogsTable({ logs, stats }) {
                     color: log.saved_by_cache ? 'var(--color-success)' : (log.model_used.includes('gpt') || log.model_used.includes('claude')) ? 'var(--accent-purple)' : 'var(--accent-cyan)',
                     border: '1px solid ' + (log.saved_by_cache ? 'rgba(16, 185, 129, 0.3)' : (log.model_used.includes('gpt') || log.model_used.includes('claude')) ? 'rgba(139, 92, 246, 0.3)' : 'rgba(6, 182, 212, 0.3)')
                   }}>
-                    {log.saved_by_cache ? 'cache-hit' : log.model_used}
+                    {log.model_used}
                   </span>
                 </td>
                 <td style={{ padding: '12px 8px', fontWeight: 'bold', color: log.saved_by_cache ? 'var(--color-success)' : 'var(--text-primary)' }}>
                   ${log.cost.toFixed(6)}
+                </td>
+                <td style={{ padding: '12px 8px', fontWeight: 'bold', color: 'var(--color-success)' }}>
+                  ${log.savings ? log.savings.toFixed(6) : '0.000000'}
+                </td>
+                <td style={{ padding: '12px 8px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }} title={log.routing_reason || 'N/A'}>
+                  {log.routing_reason || 'N/A'}
                 </td>
                 <td style={{ padding: '12px 8px' }}>
                   {log.saved_by_cache ? (
@@ -162,7 +170,7 @@ export default function AuditLogsTable({ logs, stats }) {
             ))}
             {filteredLogs.length === 0 && (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                   No se encontraron transacciones. El sistema está limpio y listo para registrar nuevos consumos.
                 </td>
               </tr>

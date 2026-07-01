@@ -7,6 +7,30 @@ export default function Playground({ user, apiUrl }) {
   const [selectedConsumer, setSelectedConsumer] = useState(
     user.role === 'admin' ? '' : user.username
   );
+
+  // Context rich states
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [fileContent, setFileContent] = useState('');
+  const [requireJson, setRequireJson] = useState(false);
+  const [urgency, setUrgency] = useState('real-time');
+
+  const handleFileSelect = (file) => {
+    setAttachedFile(file);
+    setFileContent('');
+    
+    const isText = file.type.startsWith('text/') || 
+                   file.type === 'application/json' || 
+                   file.name.endsWith('.csv') || 
+                   file.name.endsWith('.txt');
+                   
+    if (isText) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFileContent(e.target.result);
+      };
+      reader.readAsText(file);
+    }
+  };
   
   const [loading, setLoading] = useState(false);
   const [consumers, setConsumers] = useState([]);
@@ -71,7 +95,13 @@ export default function Playground({ user, apiUrl }) {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          prompt: prompt
+          prompt: prompt,
+          file_name: attachedFile ? attachedFile.name : null,
+          file_type: attachedFile ? attachedFile.type : null,
+          file_size: attachedFile ? attachedFile.size : 0,
+          file_content: fileContent || null,
+          require_json: requireJson,
+          urgency: urgency
         })
       });
 
@@ -82,6 +112,7 @@ export default function Playground({ user, apiUrl }) {
       const xActions = response.headers.get("X-Actions-Applied") || "none";
       const xRestriction = response.headers.get("X-Routing-Restriction") || "delegate_to_finops";
       const xSensitive = response.headers.get("X-Sensitive-Data-Detected") || "none";
+      const xRoutingReason = response.headers.get("X-Routing-Reason") || "";
 
       setActionsApplied(xActions);
       setSecurityRestriction(xRestriction);
@@ -151,7 +182,7 @@ export default function Playground({ user, apiUrl }) {
         }
         explanation = reasons.join(' | ');
       }
-      setRoutingReason(explanation);
+      setRoutingReason(xRoutingReason || explanation);
 
     } catch (err) {
       setResponseStatus(500);
@@ -229,6 +260,127 @@ export default function Playground({ user, apiUrl }) {
                 disabled
                 style={{ opacity: 0.8, background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', textTransform: 'capitalize' }}
               />
+            </div>
+
+            {/* Drag & Drop File Upload & Advanced Flags */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1.2fr 1fr',
+              gap: '16px',
+              padding: '16px',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--glass-border)'
+            }}>
+              {/* Columna Izquierda: Drag & Drop File Zone */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+                  Adjuntar Archivo (Imágenes, CSV, PDF, TXT...)
+                </label>
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = 'rgba(139, 92, 246, 0.08)'; }}
+                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.style.background = 'transparent'; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.background = 'transparent';
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  style={{
+                    border: '2px dashed var(--glass-border)',
+                    borderRadius: '8px',
+                    padding: '20px 10px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    background: 'transparent'
+                  }}
+                  onClick={() => document.getElementById('file-upload-input').click()}
+                >
+                  <input
+                    id="file-upload-input"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileSelect(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  {attachedFile ? (
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--accent-purple)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {attachedFile.name}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        MIME: {attachedFile.type || 'unknown'} | Size: {(attachedFile.size / 1024).toFixed(1)} KB
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAttachedFile(null);
+                          setFileContent('');
+                        }}
+                        style={{
+                          marginTop: '8px',
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          color: '#f87171',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Quitar Archivo
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Arrastra aquí tu archivo o <span style={{ color: 'var(--accent-cyan)', fontWeight: 'bold' }}>búscalo</span>
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Formatos soportados: PNG, JPG, CSV, PDF, TXT...
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Columna Derecha: Opciones Avanzadas */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+                    Urgencia del Prompt
+                  </label>
+                  <select
+                    className="select-field"
+                    value={urgency}
+                    onChange={(e) => setUrgency(e.target.value)}
+                    style={{ padding: '6px', fontSize: '12px' }}
+                  >
+                    <option value="real-time">⚡ Tiempo Real (Groq LPU / Alta Velocidad)</option>
+                    <option value="background-task">⏳ Background Task (Procesado Eficiente)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+                    Requisitos Estrictos
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={requireJson}
+                      onChange={(e) => setRequireJson(e.target.checked)}
+                    />
+                    Salida en Formato JSON Estricto
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* Formulario Prompt */}

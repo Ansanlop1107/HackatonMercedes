@@ -1,195 +1,90 @@
-# AI FinOps Hackathon — Starter Kit
+# 💻 AI FinOps Portal — Frontend Setup & Guide
 
-> *"Do more intelligence with less cost."*
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
+![Lucide](https://img.shields.io/badge/Lucide_Icons-FF4081?style=flat-square)
 
-This starter kit gives you two running AI providers out of the box — all OpenAI-compatible, no paid keys required. Your job is to build the cost layer on top: a proxy that intercepts every AI call, tracks what it costs, enforces budgets, and helps teams make smarter decisions about which model to use and why.
-
-The challenge is not about picking the best model. It's about picking the **optimal** one — balancing cost, quality, and latency for each type of task.
-
----
-
-## What is AI FinOps?
-
-**AI FinOps** is the practice of bringing financial accountability to AI API consumption. Every call to a language model costs money — and those costs scale with every request, every token, every team using the system.
-
-The problem: most companies adopting AI have no visibility into any of this. They don't know which team is spending the most, whether cheaper models would do the same job, or when a budget is about to be blown. According to Flexera 2025, 32% of cloud spend is wasted — and generative AI is accelerating that trend.
-
-AI FinOps addresses this by asking four questions:
-
-- **Who** is consuming AI, and how much does each consumer cost?
-- **What** is being spent per request — which model, which provider, how many tokens?
-- **When** should the system intervene — block a request, trigger an alert, or reroute to a cheaper model?
-- **Why** is a given model choice justified — what's the trade-off between cost, quality, and latency?
-
-The goal is not to spend less — it's to spend *wisely*. This hackathon puts you in the role of the team that builds that missing layer.
+Este es el portal web de administración y simulación interactiva de **AI FinOps Proxy**, construido utilizando **React 19** y **Vite 8** para garantizar una experiencia fluida, reactiva y moderna.
 
 ---
 
-## Prerequisites
+## 🎨 Características del Diseño
 
-| Tool | Version | Install (macOS) | Install (Windows) |
-| --- | --- | --- | --- |
-| [Docker](https://docs.docker.com/get-docker/) | 24+ | `brew install --cask docker` | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) |
-| [Task](https://taskfile.dev/installation/) | 3+ | `brew install go-task` | `winget install Task.Task` |
-| [jq](https://jqlang.github.io/jq/) | any | `brew install jq` | `winget install jqlang.jq` |
+- **Modo Oscuro e Interfaz Premium:** Diseñado con técnicas modernas de `CSS Glassmorphism`, transparencias sutiles y efectos interactivos.
+- **AI Playground:** Consola tipo chat donde los desarrolladores simulan llamadas de sus aplicaciones, visualizando en tiempo real la decisión del proxy, el coste estimado (en USD y Euros), el ahorro y los tokens.
+- **Admin Dashboard:** Vista ejecutiva con KPIs financieros (Gasto global, Ahorro total acumulado), barras de presupuesto por departamento y edición directa de cuotas.
+- **Gráfica de Predicción SVG:** Un análisis de regresión lineal simple que proyecta el gasto del departamento a futuro para predecir cuándo agotarán el saldo.
+- **Auditoría e Historial (Audit Trail):** Registro visual de solicitudes previas con filtros avanzados por departamento, tipo de modelo (económico vs premium) y estado de caché.
 
-> **Apple Silicon / Linux:** Ollama runs natively in the container — no extra setup needed.  
-> **Windows:** Use Docker Desktop with WSL2.
+---
 
-### Groq API Key (Provider C)
+## 🛠️ Prerrequisitos
 
-Groq is a free cloud AI provider — no credit card required.
+- Tener instalado **Node.js 18+** y **npm** (gestor de paquetes).
 
-1. Go to [console.groq.com](https://console.groq.com) and sign in with your Google account
-2. Navigate to [API Keys](https://console.groq.com/keys) and create a new key
-3. Copy the example env file and paste your key:
+---
 
+## 🚀 Guía de Arranque Rápido
+
+Sigue estos pasos para arrancar el frontend en tu máquina local:
+
+### 1. Entrar en la carpeta del frontend
+Abre tu terminal y dirígete al directorio `frontend`:
 ```bash
-cp .env.example .env
-# Edit .env and replace gsk_your_key_here with your actual key
+cd frontend
 ```
 
----
-
-## Quickstart
-
+### 2. Instalar dependencias de Node.js
+Ejecuta el siguiente comando para instalar las dependencias necesarias:
 ```bash
-# 1. Start both provider containers
-task start
-
-# 2. Pull the AI models (run once — downloads ~2 GB total)
-task pull
-
-# 3. Verify all providers respond (requires GROQ_API_KEY)
-task smoke
+npm install
 ```
 
-After `task start` you have:
+### 3. Configurar la URL del API Backend
+Abre el archivo [App.jsx](file:///d:/HackatonFinal/frontend/src/App.jsx) en tu editor. Ubica la constante `API_URL` en las primeras líneas del archivo y configúrala para que apunte a tu proxy local o a la URL pública generada por ngrok:
 
-| Provider | Model | OpenAI-compatible base URL | Auth |
-| --- | --- | --- | --- |
-| Provider A (local) | `llama3.2:3b` | `http://localhost:11434/v1` | None |
-| Provider B (local) | `mistral:7b` | `http://localhost:11435/v1` | None |
-| Provider C (Groq cloud) | `llama-3.1-8b-instant` | `https://api.groq.com/openai/v1` | `Bearer $GROQ_API_KEY` |
+```javascript
+// Para desarrollo en local directo:
+const API_URL = 'http://localhost:8000';
 
-All three providers accept the standard OpenAI `/v1/chat/completions` format.
-
----
-
-## All Tasks
-
-```bash
-task start   # start containers and wait for health checks
-task pull    # pull models into both providers (once per machine)
-task smoke   # send a test completion to each provider
-task stop    # stop containers (keeps downloaded models)
-task reset   # stop containers and delete all model data (frees disk)
+// O si expones tu backend con ngrok para testing remoto:
+const API_URL = 'https://tu-subdominio.ngrok-free.dev';
 ```
 
----
+*(Nota: La comunicación del frontend ya incluye automáticamente la cabecera `ngrok-skip-browser-warning` para saltarse pantallas intermedias de ngrok).*
 
-## Pricing Reference
-
-Use these prices in your cost-tracking logic:
-
-| Proveedor | Modelo | Entrada (por 1M tokens) | Salida (por 1M tokens) |
-| :--- | :--- | :--- | :--- |
-| Provider A (local) | `llama3.2:3b` | $0.06 | $0.06 |
-| Provider B (local) | `mistral:7b` | $0.24 | $0.24 |
-| Provider C (Groq) | `llama-3.1-8b-instant` | $0.05 | $0.08 |
-| DeepSeek | `deepseek/deepseek-v4-flash` | $0.10 | $0.20 |
-| OpenAI | `openai/gpt-5.4-nano` | $0.20 | $1.25 |
-| OpenAI | `openai/gpt-5.4-mini` | $0.75 | $4.50 |
-| Google | `google/gemini-3.5-flash` | $1.50 | $9.00 |
-| Google | `google/gemini-3.1-pro-preview` | $2.00 | $12.00 |
-| OpenAI | `openai/gpt-5.4` | $2.50 | $15.00 |
-| Anthropic | `anthropic/claude-sonnet-4.6` | $3.00 | $15.00 |
-| Anthropic | `anthropic/claude-opus-4.7` | $5.00 | $25.00 |
-
-The price gaps are intentional — routing decisions between them should be non-trivial.
-
----
-
-## Making a Request
-
-Both providers speak the OpenAI Chat Completions API:
-
+### 4. Arrancar el servidor de desarrollo
+Lanza el servidor local en modo de desarrollo ejecutando:
 ```bash
-curl http://localhost:11434/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "llama3.2:3b",
-    "messages": [{"role": "user", "content": "Summarize this in one sentence."}]
-  }'
+npm run dev
 ```
 
-The response includes a `usage` object with `prompt_tokens` and `completion_tokens` — use these to compute cost.
+### 5. Acceder a la aplicación
+Abre tu navegador de internet y dirígete a:
+👉 [**http://localhost:5173**](http://localhost:5173)
 
 ---
 
-## What to Build
+## 🔑 Credenciales para Pruebas
 
-See [`CHALLENGE.es.md`](CHALLENGE.es.md) for the full spec, scoring rubric, and acceptance criteria.
+Para simular distintos flujos y comportamientos en el dashboard y el playground, puedes usar los siguientes perfiles de inicio de sesión:
 
-In short: build a proxy layer that sits in front of these two providers and adds:
-
-1. **Cost visibility** — track token usage and cost per consumer
-2. **Budget enforcement** — block or warn when a consumer exceeds their limit
-3. **Optimization logic** — define and apply routing rules to reduce cost without unacceptable quality loss
-
----
-
-## Frontend Web Portal (AI FinOps Gateway)
-
-Hemos creado un frontend web independiente utilizando **React** y **Vite** para dotar a la plataforma de una interfaz visual atractiva con modo oscuro, paneles translúcidos y widgets financieros interactivos.
-
-### Características Principales
-
-1. **Gobernanza y Autenticación de Roles**:
-   - **Administrador** (`admin` / `admin`): Control total de presupuestos por departamento, creación de nuevos equipos y auditoría global.
-   - **Usuario de Departamento** (`equipo-marketing` / `equipo-marketing`): Acceso limitado para realizar peticiones simulando su propia cabecera y ver su gasto de equipo.
-
-2. **AI Playground e Historial de Estado**:
-   - Sandbox interactivo para enviar prompts y recibir respuestas directas del proxy.
-   - **Widgets de Respuesta**: Indican en tiempo real el código HTTP devuelto:
-     - `200 OK` para llamadas exitosas.
-     - `403 Forbidden` si simulas un departamento no registrado (ej. `equipo-ventas`).
-     - `429 Quota Exceeded` si se ha sobrepasado el límite de gasto del equipo.
-   - Visualización del modelo enrutado por el Decision Router, tokens consumidos, coste estimado en USD y conversión a Euros (€).
-   - Indicador de **Cache Hit** a coste cero si el prompt coincide con una respuesta de caché en las últimas 24 horas.
-
-3. **Dashboard FinOps & Predicción**:
-   - Resumen financiero de KPIs (Gasto global, Presupuesto total, Ahorro por caché y Previsión de consumo a fin de mes).
-   - Barras de progreso de gasto en tiempo real frente a los límites por departamento.
-   - Panel de control para que el administrador actualice los límites presupuestarios o registre nuevos departamentos.
-   - **Gráfica de Predicción de Gasto**: Gráfica SVG interactiva que traza el historial de costes acumulados y realiza una extrapolación lineal predictiva para los siguientes 7 días basándose en la tasa de uso diaria promedio.
-   - Tabla de auditoría en tiempo real con las últimas transacciones registradas.
-
-### Instrucciones para Iniciar el Frontend
-
-1. **Instalar dependencias**:
-   Ingresa a la carpeta `frontend` e instala los paquetes de Node:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. **Iniciar servidor de desarrollo**:
-   Lanza el servidor local en modo desarrollo:
-   ```bash
-   npm run dev
-   ```
-   Accede a la interfaz en tu navegador en [http://localhost:5173/](http://localhost:5173/).
-
-3. **Configuración del Servidor del Proxy**:
-   Por defecto, el frontend se conecta a la API local del proxy en `http://localhost:8000`. Si ejecutas el proxy en otra dirección, cámbiala en la constante `API_URL` del archivo [App.jsx](file:///d:/HackatonMercedes/frontend/src/App.jsx).
+- **Rol de Administrador (FinOps Admin):**
+  - **Usuario:** `admin`
+  - **Contraseña:** `admin`
+  - *(Permite: Modificar presupuestos en tiempo real, crear consumidores y ver logs globales).*
+- **Rol de Departamento (Usuario Normal):**
+  - **Usuario:** Nombre o ID de un departamento registrado (ej: `equipo-marketing`, `mercedes-drive-assistant`, `mercedes-lab-experiments`).
+  - **Contraseña:** El mismo valor que el nombre del usuario.
+  - *(Permite: Interactuar con el Playground, ver el presupuesto restante de su equipo y su predicción de gasto individual).*
 
 ---
 
-## Troubleshooting
+## 🏗️ Comprobación y Compilación de Producción
 
-**`task pull` is slow** — model downloads are 1–4 GB each. Run it once and they persist in Docker volumes across restarts (`task stop` keeps them; `task reset` deletes them).
-
-**Port conflict on 11434** — if you have Ollama installed locally, stop it first: `ollama stop` or kill the process.
-
-**Container won't start** — make sure Docker Desktop is running, then `task reset && task start`.
+Para validar el empaquetado del frontend o generar el código de distribución estático listo para producción, ejecuta:
+```bash
+npm run build
+```
+Esto creará una carpeta optimizada `dist/` en la raíz de `frontend/` conteniendo los bundles listos para cualquier servidor web estático.

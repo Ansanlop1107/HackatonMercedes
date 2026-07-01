@@ -46,7 +46,7 @@ def init_db():
         VALUES (?, ?, ?)
     """, test_consumers)
     
-    # Crear la tabla de logs
+    # Crear la tabla de logs con columnas extendidas para FinOps
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,13 +57,34 @@ def init_db():
             model_used TEXT NOT NULL,
             cost REAL NOT NULL,
             saved_by_cache INTEGER NOT NULL CHECK (saved_by_cache IN (0, 1)),
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            savings REAL NOT NULL DEFAULT 0.0,
+            routing_reason TEXT NOT NULL DEFAULT '',
             FOREIGN KEY(consumer_id) REFERENCES consumers(id)
         )
     """)
     
+    # Migración automática para bases de datos existentes
+    cursor.execute("PRAGMA table_info(logs)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    
+    if "prompt_tokens" not in columns:
+        print("[MIGRATION] Añadiendo columna 'prompt_tokens' a la tabla 'logs'")
+        cursor.execute("ALTER TABLE logs ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0")
+    if "completion_tokens" not in columns:
+        print("[MIGRATION] Añadiendo columna 'completion_tokens' a la tabla 'logs'")
+        cursor.execute("ALTER TABLE logs ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0")
+    if "savings" not in columns:
+        print("[MIGRATION] Añadiendo columna 'savings' a la tabla 'logs'")
+        cursor.execute("ALTER TABLE logs ADD COLUMN savings REAL NOT NULL DEFAULT 0.0")
+    if "routing_reason" not in columns:
+        print("[MIGRATION] Añadiendo columna 'routing_reason' a la tabla 'logs'")
+        cursor.execute("ALTER TABLE logs ADD COLUMN routing_reason TEXT NOT NULL DEFAULT ''")
+    
     conn.commit()
     conn.close()
-    print("Base de datos inicializada correctamente (tablas 'consumers' y 'logs').")
+    print("Base de datos inicializada y migrada correctamente (tablas 'consumers' y 'logs').")
 
 if __name__ == "__main__":
     init_db()
