@@ -1,89 +1,195 @@
-# 🚀 AI FinOps Proxy — Smart Gateway para Gobernanza de IA
+# AI FinOps Gateway - Guia de Arranque (Backend + Frontend)
 
-> **La capa de control y optimización de costes definitiva para empresas que consumen IA Generativa.**
+Este workspace contiene dos proyectos separados dentro del mismo repositorio:
 
-## 📖 Visión General
+- `backend/`: API proxy FinOps construida con FastAPI.
+- `frontend/`: portal web construido con React + Vite.
 
-A medida que el uso de LLMs crece en las empresas, también lo hacen los costes ocultos, el "vendor lock-in" y los riesgos de seguridad. **AI FinOps Proxy** es un API Gateway inteligente (Reverse Proxy) que se interpone entre los usuarios internos y múltiples proveedores de IA (OpenAI, Anthropic, Groq, Ollama). 
-
-Su misión es clara: **Interceptar, Proteger, Enrutar inteligentemente y Auditar** cada petición para maximizar el ahorro, garantizar la disponibilidad y proteger los datos sensibles.
-
----
-
-## 🏗️ Arquitectura de Alto Nivel
-
-El sistema se divide en tres componentes principales:
-
-1. **Frontend Enriquecido (Cliente):** Envía prompts acompañados de un contexto rico (archivos, metadatos, requisitos de latencia o formato de salida).
-2. **Core Proxy (Smart Router):** Un pipeline de 6 capas basado en el patrón *Chain of Responsibility* que toma decisiones milisegundo a milisegundo.
-3. **FinOps Admin Dashboard:** Panel de control en tiempo real para visualizar consumo, ahorro (Total Savings), bloqueos de seguridad y predicciones de agotamiento de presupuesto.
+La idea es ejecutar ambos de forma local y exponer el backend con ngrok para que el frontend consuma una URL publica HTTPS.
 
 ---
 
-## 🧠 Pipeline de Orquestación (El "Cerebro" del Proxy)
+## 1) Arquitectura rapida
 
-Cada solicitud enviada por un usuario pasa por un **flujo estricto de 6 fases** antes de llegar a cualquier modelo.
-
-### 1. Capa de Seguridad y Cumplimiento (Security & PII Shield)
-* **Anti-Prompt Injection:** Bloquea intentos de manipulación del *system prompt* usando heurísticas de seguridad.
-* **Prevención de Fuga de Datos (DLP):** Escanea el contenido en busca de PII (Tarjetas de crédito, DNI, Emails). Si detecta datos sensibles, marca la petición para ser procesada **exclusivamente por modelos locales** (ej. Ollama), garantizando la privacidad y el cumplimiento del GDPR.
-
-### 2. Capa de Caché Semántica
-* Comprueba si la misma petición (o una semánticamente idéntica) ya fue procesada recientemente.
-* **Impacto:** Respuestas instantáneas con coste `$0.00`. El ahorro se suma a la métrica global de *Total Savings*.
-
-### 3. Gatekeeper FinOps (Control de Presupuesto)
-* Verifica la identidad del consumidor (`team_id` o `consumer_id`).
-* Evalúa si el equipo tiene saldo suficiente para la petición. Si el presupuesto se ha agotado, la petición se bloquea en la puerta (HTTP 403), previniendo sorpresas en la factura.
-
-### 4. Motor de Enrutamiento Multidimensional (Smart Routing)
-El núcleo del proyecto. En lugar de enviar todo al modelo más caro, el sistema evalúa múltiples dimensiones de la solicitud y elige el modelo óptimo basándose en un árbol de decisión:
-
-| Dimensión Analizada | Regla de Enrutamiento | Proveedor/Modelo Destino |
-| :--- | :--- | :--- |
-| **Privacidad (PII)** | Si el prompt contiene datos sensibles. | 🔒 **Ollama (Modelo Local)** |
-| **Modalidad** | Si el usuario adjunta imágenes. | 👁️ **Modelo de Visión** (GPT-4o / Claude) |
-| **Análisis de Datos** | Si el usuario adjunta archivos CSV/Excel. | 📊 **Code Interpreter / Analítico** |
-| **Tamaño del Contexto** | Si el prompt + archivos supera los 8k tokens. | 📚 **Modelo Long-Context Eficiente** (Haiku / Flash) |
-| **Formato Estricto** | Si el usuario requiere salida en JSON. | ⚙️ **Especializado en JSON** (Llama 3 / GPT-4o-mini) |
-| **Urgencia / Latencia** | Si se requiere respuesta en tiempo real. | ⚡ **LPU Fast Engine** (Groq) |
-| **Complejidad (NLP)** | Tareas lógicas (Código, matemáticas, refactorización). | 🧠 **Premium** (GPT-4o / Claude 3.5) |
-| **Simplicidad (NLP)** | Tareas básicas (Resumen, traducción, chat). | 💰 **Económico** (Groq / Llama 8b) |
-
-### 5. Resiliencia y Fallback (Alta Disponibilidad)
-* Si el proveedor seleccionado sufre una caída, devuelve un timeout o un error 5xx, el proxy hace un *retry* automático hacia el **segundo mejor modelo** calculado, garantizando que el usuario siempre reciba respuesta sin interrupciones.
-
-### 6. FinOps Tracking y Auditoría
-* Una vez obtenida la respuesta, el proxy extrae el uso exacto de `prompt_tokens` y `completion_tokens`.
-* Calcula el coste real utilizando tarifas actualizadas.
-* Registra en la base de datos el **Motivo de Enrutamiento** ("Routing Reason") y calcula el **Ahorro Generado** frente a haber usado un modelo premium por defecto.
+1. El backend corre en local (puerto `8000`) y ofrece endpoints como:
+	 - `POST /v1/chat/completions`
+	 - `POST /v1/admin/login`
+	 - `GET /v1/admin/stats`
+2. ngrok publica ese backend local en una URL HTTPS.
+3. El frontend usa esa URL de ngrok como `API_URL`.
 
 ---
 
-## 📊 Dashboard de Administración y Análisis predictivo
+## 2) Prerrequisitos
 
-La interfaz de administración proporciona visibilidad total a nivel C-Level (CTO / CFO):
+Instala estas herramientas antes de empezar:
 
-* **Gráfica Predictiva (Regresión Lineal):** Analiza la tendencia de gasto de cada departamento y predice en qué fecha exacta se quedarán sin presupuesto si continúan a ese ritmo.
-* **Métrica Estrella - Total Savings:** Un contador en tiempo real que demuestra el ROI del proxy, mostrando el dinero ahorrado gracias a la caché y al enrutamiento eficiente a modelos más baratos.
-* **Audit Trail & Alertas:** Registro de todos los bloqueos por seguridad (Prompt Injection), re-enrutamientos por privacidad (PII) y peticiones denegadas por límite de presupuesto.
+- Docker Desktop (con WSL2 en Windows).
+- Python 3.10+.
+- Node.js 18+ y npm.
+- ngrok (cuenta gratuita).
 
----
+Opcional (recomendado para pruebas del starter):
 
-## 🛠️ Stack Tecnológico
-
-*(Nota: Sustituye esto con las tecnologías reales de tu proyecto)*
-* **Frontend:** React y Bite
-* **Backend Proxy:** Python (FastAPI)
-* **Base de Datos:** SQLite
-* **Proveedores IA Integrados:** Ollama (Local), Groq, OpenAI, Anthropic
+- Task (`task`) y jq.
 
 ---
 
-## 💡 Criterios de Evaluación del Hackathon Cumplidos
+## 3) Levantar proveedores LLM locales (Docker)
 
-- [x] **Multi-proveedor:** Orquesta llamadas entre APIs en la nube y modelos locales.
-- [x] **Consumidores Múltiples:** Trackea departamentos aislados de forma independiente.
-- [x] **Visibilidad de Costes:** Cálculo granular de tokens y desglose de precio por usuario.
-- [x] **Gobernanza:** Límites de presupuesto estrictos con respuesta visible de bloqueo.
-- [x] **Decisión Inteligente:** Motor basado en reglas explícitas demostrando trade-offs lógicos entre coste, calidad, velocidad y privacidad.
+El backend enruta modelos locales usando URLs por defecto:
+
+- Provider A: `http://localhost:11434`
+- Provider B: `http://localhost:11435`
+
+Desde la carpeta `backend`:
+
+```powershell
+cd backend
+docker compose up -d
+```
+
+Verifica que los contenedores estan activos:
+
+```powershell
+docker ps
+```
+
+Si es la primera vez con Ollama, puede tardar por descarga de imagen/modelos.
+
+---
+
+## 4) Arrancar el backend (FastAPI)
+
+### 4.1 Crear y activar entorno virtual (Windows PowerShell)
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### 4.2 Instalar dependencias Python
+
+En este repo no hay `requirements.txt`, asi que instalalas manualmente:
+
+```powershell
+pip install fastapi uvicorn litellm python-dotenv pandas
+```
+
+### 4.3 Ejecutar API
+
+```powershell
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Comprobaciones:
+
+- Health: `http://localhost:8000/health`
+- Swagger: `http://localhost:8000/docs`
+
+---
+
+## 5) Exponer el backend con ngrok
+
+En otra terminal (manteniendo el backend encendido):
+
+```powershell
+ngrok http 8000
+```
+
+ngrok te mostrara una URL publica, por ejemplo:
+
+`https://tu-subdominio.ngrok-free.dev`
+
+Esa sera la base URL del proxy para el frontend.
+
+---
+
+## 6) Conectar frontend con el proxy (ngrok)
+
+Abre `frontend/src/App.jsx` y actualiza la constante `API_URL` con la URL HTTPS de ngrok.
+
+Ejemplo:
+
+```jsx
+const API_URL = 'https://tu-subdominio.ngrok-free.dev';
+```
+
+Nota:
+
+- El frontend ya incluye la cabecera `ngrok-skip-browser-warning: true` en `frontend/src/services/apiFetch.js`, por lo que no debes hacer ajustes adicionales para ese warning.
+
+---
+
+## 7) Arrancar el frontend (React + Vite)
+
+Desde la carpeta `frontend`:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Abre:
+
+- `http://localhost:5173`
+
+---
+
+## 8) Flujo recomendado de arranque (orden)
+
+1. Levantar Docker providers (`backend/docker-compose.yml`).
+2. Levantar FastAPI en `localhost:8000`.
+3. Levantar ngrok apuntando a `8000`.
+4. Pegar URL de ngrok en `frontend/src/App.jsx`.
+5. Levantar frontend con Vite.
+
+---
+
+## 9) Credenciales y uso rapido
+
+Login administrador:
+
+- usuario: `admin`
+- password: `admin`
+
+Login de departamento:
+
+- usuario: id del departamento existente (ej. `equipo-marketing`)
+- password: mismo valor que el usuario
+
+---
+
+## 10) Troubleshooting
+
+### Error de conexion en frontend
+
+- Revisa que `API_URL` en `frontend/src/App.jsx` sea exactamente la URL activa de ngrok.
+- Si reiniciaste ngrok, su URL cambia: actualiza `API_URL` y recarga frontend.
+
+### El backend no responde en `:8000`
+
+- Verifica que el entorno virtual este activo.
+- Revisa logs de uvicorn en la terminal del backend.
+
+### Conflicto de puertos 11434/11435
+
+- Cierra otros servicios Ollama locales o cambia puertos en `backend/docker-compose.yml`.
+
+### CORS / bloqueo navegador
+
+- Este backend tiene CORS abierto (`allow_origins=["*"]`).
+- Si aparece warning de ngrok, el frontend ya envia `ngrok-skip-browser-warning`.
+
+---
+
+## 11) Estructura del monorepo
+
+```text
+HackatonFinal/
+	backend/    # Proxy FastAPI + SQLite + reglas FinOps
+	frontend/   # Portal React/Vite (dashboard, playground, login)
+```
+

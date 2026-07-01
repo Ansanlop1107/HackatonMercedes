@@ -139,6 +139,53 @@ In short: build a proxy layer that sits in front of these two providers and adds
 
 ---
 
+## Frontend Web Portal (AI FinOps Gateway)
+
+Hemos creado un frontend web independiente utilizando **React** y **Vite** para dotar a la plataforma de una interfaz visual atractiva con modo oscuro, paneles translúcidos y widgets financieros interactivos.
+
+### Características Principales
+
+1. **Gobernanza y Autenticación de Roles**:
+   - **Administrador** (`admin` / `admin`): Control total de presupuestos por departamento, creación de nuevos equipos y auditoría global.
+   - **Usuario de Departamento** (`equipo-marketing` / `equipo-marketing`): Acceso limitado para realizar peticiones simulando su propia cabecera y ver su gasto de equipo.
+
+2. **AI Playground e Historial de Estado**:
+   - Sandbox interactivo para enviar prompts y recibir respuestas directas del proxy.
+   - **Widgets de Respuesta**: Indican en tiempo real el código HTTP devuelto:
+     - `200 OK` para llamadas exitosas.
+     - `403 Forbidden` si simulas un departamento no registrado (ej. `equipo-ventas`).
+     - `429 Quota Exceeded` si se ha sobrepasado el límite de gasto del equipo.
+   - Visualización del modelo enrutado por el Decision Router, tokens consumidos, coste estimado en USD y conversión a Euros (€).
+   - Indicador de **Cache Hit** a coste cero si el prompt coincide con una respuesta de caché en las últimas 24 horas.
+
+3. **Dashboard FinOps & Predicción**:
+   - Resumen financiero de KPIs (Gasto global, Presupuesto total, Ahorro por caché y Previsión de consumo a fin de mes).
+   - Barras de progreso de gasto en tiempo real frente a los límites por departamento.
+   - Panel de control para que el administrador actualice los límites presupuestarios o registre nuevos departamentos.
+   - **Gráfica de Predicción de Gasto**: Gráfica SVG interactiva que traza el historial de costes acumulados y realiza una extrapolación lineal predictiva para los siguientes 7 días basándose en la tasa de uso diaria promedio.
+   - Tabla de auditoría en tiempo real con las últimas transacciones registradas.
+
+### Instrucciones para Iniciar el Frontend
+
+1. **Instalar dependencias**:
+   Ingresa a la carpeta `frontend` e instala los paquetes de Node:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Iniciar servidor de desarrollo**:
+   Lanza el servidor local en modo desarrollo:
+   ```bash
+   npm run dev
+   ```
+   Accede a la interfaz en tu navegador en [http://localhost:5173/](http://localhost:5173/).
+
+3. **Configuración del Servidor del Proxy**:
+   Por defecto, el frontend se conecta a la API local del proxy en `http://localhost:8000`. Si ejecutas el proxy en otra dirección, cámbiala en la constante `API_URL` del archivo [App.jsx](file:///d:/HackatonMercedes/frontend/src/App.jsx).
+
+---
+
 ## Troubleshooting
 
 **`task pull` is slow** — model downloads are 1–4 GB each. Run it once and they persist in Docker volumes across restarts (`task stop` keeps them; `task reset` deletes them).
