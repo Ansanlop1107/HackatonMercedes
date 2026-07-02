@@ -31,7 +31,7 @@ Su misión es clara: **Interceptar, Proteger, Enrutar inteligentemente y Auditar
             │                       │                       │
 ┌───────────▼───────────┐ ┌─────────▼───────────┐ ┌─────────▼───────────┐
 │     DATABASE LAYER    │ │    LOCAL PROVIDERS  │ │    CLOUD PROVIDERS  │
-│      [ SQLite 3 ]     │ │   [ Ollama (Docker) ] │ │  [ Groq, OpenAI,   │
+│      [ SQLite 3 ]     │ │   [ Ollama (Docker) ] │ │  [ Groq, OpenAI,  │
 │   (Logs & Budgets)    │ │(Llama 3.2 & Mistral)│ │   Anthropic, etc. ] │
 └───────────────────────┘ └─────────────────────┘ └─────────────────────┘
 ```
