@@ -98,6 +98,7 @@ El núcleo inteligente del proxy. Evalúa múltiples dimensiones de la solicitud
 | **Presupuesto Agotado > 80%** | Si el consumo del departamento supera el 80% de su límite asignado. | 💰 **Ollama Local (Economía Forzada)** |
 | **Prioridad Experimental** | Si el consumidor pertenece al departamento de laboratorios / experimentos. | 💰 **Ollama Local (Bajo Coste)** |
 | **Uso Normal (Standard)** | Consumidor estándar, prompt limpio y presupuesto holgado. | ⚡ **gpt-5.4-mini (Estándar)** |
+| **Uso Premium (Pro)** | Consumidor pro, prompt extenso y presupuesto más ajustado. | ⚡ **claude-opus-4.7 (Pro)** |
 
 ### 5. Resiliencia y Fallback (Alta Disponibilidad)
 - Si el proveedor seleccionado sufre una caída de red o devuelve un error 5xx, el proxy realiza un reintento automático (retry) redirigiendo la petición hacia el **segundo mejor modelo** local o cloud, garantizando que el usuario siempre reciba respuesta.
