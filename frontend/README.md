@@ -75,7 +75,7 @@ Para simular distintos flujos y comportamientos en el dashboard y el playground,
   - **Contraseña:** `admin`
   - *(Permite: Modificar presupuestos en tiempo real, crear consumidores y ver logs globales).*
 - **Rol de Departamento (Usuario Normal):**
-  - **Usuario:** Nombre o ID de un departamento registrado (ej: `equipo-marketing`, `mercedes-drive-assistant`, `mercedes-lab-experiments`).
+  - **Usuario:** Nombre o ID de un departamento registrado (ej: `equipo-marketing`, `ingenieria-desarrollo`, `atencion-cliente`).
   - **Contraseña:** El mismo valor que el nombre del usuario.
   - *(Permite: Interactuar con el Playground, ver el presupuesto restante de su equipo y su predicción de gasto individual).*
 

@@ -575,7 +575,7 @@ export default function Playground({ user, apiUrl }) {
             Políticas de Optimización
           </h3>
           <ul style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '14px' }}>
-            <li><strong>WHO (Prioridad):</strong> mercedes-drive-assistant es 'crítico', experimentos es 'experimental' (baja prioridad).</li>
+            <li><strong>WHO (Prioridad):</strong> IT/Direccion son 'alta', Ventas/Finanzas 'media' y Soporte/RRHH son 'baja' (forzado a Llama3 local).</li>
             <li><strong>WHEN (Ahorro):</strong> Si el gasto del departamento supera el 80%, se le fuerza a Llama3 local.</li>
           </ul>
         </div>

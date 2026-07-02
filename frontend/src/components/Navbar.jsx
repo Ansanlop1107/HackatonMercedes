@@ -31,7 +31,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
             AI FinOps Gateway
           </h1>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            v0.1.0 · Hackathon Mercedes
+            v1.0.0 · Enterprise Gateway
           </span>
         </div>
       </div>
