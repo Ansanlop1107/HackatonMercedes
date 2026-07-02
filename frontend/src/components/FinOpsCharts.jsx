@@ -1,22 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function FinOpsCharts({ stats, logs }) {
+  const [selectedDept, setSelectedDept] = useState('global');
+
   // Calculate prediction for the next 7 and 30 days
   const calculateForecast = () => {
     if (!stats || !stats.daily_logs || stats.daily_logs.length === 0) {
-      return { days7: 0, days30: 0, avgDaily: 0 };
+      return { days7: 0, days30: 0, avgDaily: 0, actualSpend: 0, budget: 0 };
     }
 
-    const uniqueDays = [...new Set(stats.daily_logs.map(log => log.day))];
-    const totalSpend = stats.total_spend_usd;
-    const numDays = uniqueDays.length || 1;
-    const avgDailySpend = totalSpend / numDays;
+    if (selectedDept === 'global') {
+      const uniqueDays = [...new Set(stats.daily_logs.map(log => log.day))];
+      const totalSpend = stats.total_spend_usd;
+      const numDays = uniqueDays.length || 1;
+      const avgDailySpend = totalSpend / numDays;
 
-    return {
-      avgDaily: avgDailySpend,
-      days7: totalSpend + (avgDailySpend * 7),
-      days30: totalSpend + (avgDailySpend * 30)
-    };
+      return {
+        avgDaily: avgDailySpend,
+        days7: totalSpend + (avgDailySpend * 7),
+        days30: totalSpend + (avgDailySpend * 30),
+        actualSpend: totalSpend,
+        budget: stats.total_budget_usd
+      };
+    } else {
+      const deptInfo = stats.departments.find(d => d.id === selectedDept) || { budget: 0, current_spend: 0 };
+      const uniqueDays = [...new Set(stats.daily_logs.map(log => log.day))];
+      const numDays = uniqueDays.length || 1;
+      
+      const totalSpend = deptInfo.current_spend;
+      const avgDailySpend = totalSpend / numDays;
+
+      return {
+        avgDaily: avgDailySpend,
+        days7: totalSpend + (avgDailySpend * 7),
+        days30: totalSpend + (avgDailySpend * 30),
+        actualSpend: totalSpend,
+        budget: deptInfo.budget
+      };
+    }
   };
 
   const forecast = calculateForecast();
@@ -28,17 +49,20 @@ export default function FinOpsCharts({ stats, logs }) {
     let cacheHits = 0;
     
     logs.forEach(log => {
+      // Filtrar logs por departamento si está seleccionado
+      if (selectedDept !== 'global' && log.consumer_id !== selectedDept) return;
+
       if (log.saved_by_cache === 1) cacheHits++;
       else if (log.model_used === 'gpt-4o' || log.model_used.includes('gpt') || log.model_used.includes('claude')) gpt4oCalls++;
       else if (log.model_used.includes('llama') || log.model_used.includes('mistral')) llama3Calls++;
     });
 
-    const total = logs.length || 1;
+    const total = (selectedDept === 'global' ? logs.length : logs.filter(l => l.consumer_id === selectedDept).length) || 1;
     return {
       gpt4o: { count: gpt4oCalls, percentage: (gpt4oCalls / total) * 100 },
       llama3: { count: llama3Calls, percentage: (llama3Calls / total) * 100 },
       cache: { count: cacheHits, percentage: (cacheHits / total) * 100 },
-      totalCalls: logs.length
+      totalCalls: selectedDept === 'global' ? logs.length : logs.filter(l => l.consumer_id === selectedDept).length
     };
   };
 
@@ -46,8 +70,9 @@ export default function FinOpsCharts({ stats, logs }) {
 
   // Rendering a simple SVG Line Chart for prediction
   const renderForecastingChart = () => {
-    const actualSpend = stats.total_spend_usd;
+    const actualSpend = forecast.actualSpend;
     const avg = forecast.avgDaily || 0.0;
+    const budgetLimit = forecast.budget;
     
     const days = ['D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Actual', 'F+2', 'F+4', 'F+6', 'F+7'];
     const points = [
@@ -67,7 +92,7 @@ export default function FinOpsCharts({ stats, logs }) {
     const height = 180;
     const padding = 30;
     
-    const maxVal = Math.max(...points, stats.total_budget_usd) || 10;
+    const maxVal = Math.max(...points, budgetLimit) || 10;
     const minVal = 0;
     
     const getCoords = (index, value) => {
@@ -91,8 +116,8 @@ export default function FinOpsCharts({ stats, logs }) {
       }
     }
 
-    const budgetCoordsStart = getCoords(0, stats.total_budget_usd);
-    const budgetCoordsEnd = getCoords(points.length - 1, stats.total_budget_usd);
+    const budgetCoordsStart = getCoords(0, budgetLimit);
+    const budgetCoordsEnd = getCoords(points.length - 1, budgetLimit);
     const budgetPath = `M ${budgetCoordsStart.x} ${budgetCoordsStart.y} L ${budgetCoordsEnd.x} ${budgetCoordsEnd.y}`;
 
     return (
@@ -103,7 +128,7 @@ export default function FinOpsCharts({ stats, logs }) {
           
           {/* Budget Line */}
           <path d={budgetPath} stroke="var(--color-error)" strokeWidth="1.5" strokeDasharray="4 4" />
-          <text x={width - 130} y={budgetCoordsEnd.y - 6} fill="var(--color-error)" fontSize="9" fontWeight="bold">LÍMITE PRESUPUESTO</text>
+          <text x={width - 135} y={budgetCoordsEnd.y - 6} fill="var(--color-error)" fontSize="9" fontWeight="bold">LIMITE PRESUPUESTO</text>
 
           {/* Actual Line */}
           <path d={actualPath} fill="none" stroke="var(--accent-purple)" strokeWidth="3" strokeLinecap="round" />
@@ -141,13 +166,29 @@ export default function FinOpsCharts({ stats, logs }) {
       
       {/* Gráfica de Tendencias & Pronóstico */}
       <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', fontFamily: 'var(--font-heading)' }}>
-            Tendencias & Análisis Predictivo FinOps
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '2px' }}>
-            Extrapolación basada en llamadas reales. Tasa de gasto promedio: <strong>${forecast.avgDaily.toFixed(4)} USD / día</strong>.
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', fontFamily: 'var(--font-heading)' }}>
+              Tendencias & Análisis Predictivo FinOps
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '2px' }}>
+              Promedio: <strong>${forecast.avgDaily.toFixed(4)} USD / día</strong>. Previsión 30d: <strong style={{ color: forecast.days30 > forecast.budget ? 'var(--color-error)' : 'var(--color-success)' }}>${forecast.days30.toFixed(2)} USD</strong> (Límite: ${forecast.budget.toFixed(2)} USD).
+            </p>
+          </div>
+          
+          <select 
+            value={selectedDept} 
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="input-field" 
+            style={{ width: '180px', padding: '6px 10px', fontSize: '12px', background: 'rgba(0,0,0,0.4)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+          >
+            <option value="global">Global (Todos los equipos)</option>
+            {stats.departments && stats.departments.map(dept => (
+              <option key={dept.id} value={dept.id}>
+                {dept.id.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </option>
+            ))}
+          </select>
         </div>
         
         {renderForecastingChart()}
@@ -163,7 +204,7 @@ export default function FinOpsCharts({ stats, logs }) {
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '12px', height: '3px', borderTop: '3px dashed var(--color-error)', display: 'inline-block' }}></span>
-            Límite Global
+            Límite Presupuesto
           </span>
         </div>
       </div>
@@ -184,7 +225,7 @@ export default function FinOpsCharts({ stats, logs }) {
           {/* Stacked Progress Bar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <span>Carga de Procesamiento</span>
+              <span>Carga de Procesamiento ({selectedDept === 'global' ? 'Global' : selectedDept.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())})</span>
               <span>{dist.totalCalls} llamadas totales</span>
             </div>
             <div style={{ width: '100%', height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', overflow: 'hidden', display: 'flex' }}>
@@ -198,7 +239,7 @@ export default function FinOpsCharts({ stats, logs }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
             
             <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', textAlign: 'center' }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 'bold' }}>Cache Hits (SQLite)</span>
+              <span style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 'bold' }}>Cache Hits</span>
               <div style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '4px' }}>{dist.cache.count}</div>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{dist.cache.percentage.toFixed(0)}% del total</span>
             </div>
@@ -226,7 +267,7 @@ export default function FinOpsCharts({ stats, logs }) {
             color: 'var(--text-secondary)',
             lineHeight: '1.4'
           }}>
-            💡 <strong>Reglas del Enrutador Activas:</strong> El proxy inspecciona la seguridad del prompt, comprueba el estado del presupuesto asignado (economía forzada al 80%) y evalúa el origen/prioridad del departamento antes de enviar la petición al proveedor IA correspondiente.
+            💡 <strong>Análisis Dinámico por Equipo:</strong> Utiliza el selector de arriba para alternar entre el pronóstico global o individualizado de cada departamento. La distribución de carga a la derecha se adaptará automáticamente para mostrar el balance de modelos de ese equipo.
           </div>
 
         </div>
