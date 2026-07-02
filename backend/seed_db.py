@@ -52,7 +52,7 @@ RESPONSES = [
     "Descubre la revolucion de la movilidad electrica. Eficiencia y diseño premium.",
     "Hola, te escribo para saber si tuviste tiempo de revisar nuestra propuesta comercial.",
     "Como usuario administrador, quiero poder ver el panel de control FinOps...",
-    "Los gastos han sido clasificados como: 45% alojamiento, 35% comida y 20% transporte.",
+    "Los gastos han sido clasificados como: 45% alojamiento, 35% comida and 20% transporte.",
     "Por favor, asegurate de limpiar las cookies del navegador e intentar de nuevo.",
     "Buscamos un Ingeniero de Software con mas de 5 años de experiencia en React y Python...",
     "Para configurar la VPN en macOS: 1. Abre Preferencias del Sistema -> Red...",
@@ -87,62 +87,64 @@ def seed():
         
     print(f"Insertados {len(TEAMS)} consumidores.")
     
-    # Generar logs de los ultimos 7 dias
     start_time = datetime.now() - timedelta(days=7)
-    
     log_entries = []
     
-    # Para cada equipo, generar entre 40 y 75 transacciones historicas
     for team, info in TEAMS.items():
-        num_logs = random.randint(40, 75)
+        budget = info["budget"]
         
-        # Si el equipo es 'ventas', queremos que exceda su presupuesto ($50.00)
-        # Haremos que tenga logs que sumen mas de $50.00!
+        # Determinar el gasto objetivo
         if team == "ventas":
-            log_entries.append((
-                (start_time + timedelta(hours=random.randint(1, 160))).strftime("%Y-%m-%d %H:%M:%S"),
-                team,
-                "Analisis profundo de propuestas comerciales y transcripciones de llamadas de 10 clientes premium.",
-                "Aqui tienes el analisis de las propuestas comerciales...",
-                "claude-opus-4.7",
-                50.05,
-                0, # cache miss
-                100000, # prompt tokens (muy grande)
-                100000, # completion tokens
-                0.0,
-                "NLP: Analisis masivo de llamadas con alta complejidad. Enrutado a Claude Opus."
-            ))
+            target_spend = random.uniform(50.15, 52.50)
+        elif team == "ingenieria-desarrollo":
+            target_spend = budget * random.uniform(0.81, 0.88)
+        else:
+            target_spend = budget * random.uniform(0.15, 0.70)
             
-        for _ in range(num_logs):
-            log_time = start_time + timedelta(hours=random.randint(1, 160))
-            prompt = random.choice(PROMPTS)
-            response = random.choice(RESPONSES)
-            model = random.choice(MODELS)
+        current_team_spend = 0.0
+        iterations = 0
+        
+        while current_team_spend < target_spend and iterations < 1500:
+            iterations += 1
             
-            p_tokens = random.randint(100, 1500)
-            c_tokens = random.randint(100, 2000)
-            
-            if model == "claude-opus-4.7":
-                cost = (p_tokens / 1000.0) * 0.005 + (c_tokens / 1000.0) * 0.025
-            elif model == "gpt-5.4-mini":
-                cost = (p_tokens / 1000.0) * 0.00075 + (c_tokens / 1000.0) * 0.0045
-            elif model == "mistral:7b":
-                cost = (p_tokens / 1000.0) * 0.00024 + (c_tokens / 1000.0) * 0.00024
-            elif model == "llama-3.1-8b-instant":
-                cost = (p_tokens / 1000.0) * 0.00005 + (c_tokens / 1000.0) * 0.00008
-            else: # llama3.2:3b
-                cost = (p_tokens / 1000.0) * 0.00006 + (c_tokens / 1000.0) * 0.00006
+            # Si el equipo tiene prioridad experimental, forzamos modelo local
+            if info["priority"] == "experimental":
+                model = random.choice(["llama3.2:3b", "llama-3.1-8b-instant"])
+                p_tokens = random.randint(100, 1500)
+                c_tokens = random.randint(100, 2000)
+            else:
+                model = random.choice(MODELS)
+                # Simular contextos corporativos medianos/grandes (análisis de documentos/código)
+                p_tokens = random.randint(8000, 32000)
+                c_tokens = random.randint(500, 3000)
                 
-            saved_by_cache = random.choice([0, 0, 0, 0, 1])
+            # Calcular coste segun el modelo con tarifas realistas
+            if model == "claude-opus-4.7":
+                cost = (p_tokens / 1000.0) * 0.015 + (c_tokens / 1000.0) * 0.075
+            elif model == "gpt-5.4-mini":
+                cost = (p_tokens / 1000.0) * 0.002 + (c_tokens / 1000.0) * 0.008
+            elif model == "mistral:7b":
+                cost = (p_tokens / 1000.0) * 0.00025 + (c_tokens / 1000.0) * 0.00025
+            elif model == "llama-3.1-8b-instant":
+                cost = (p_tokens / 1000.0) * 0.00015 + (c_tokens / 1000.0) * 0.0002
+            else: # llama3.2:3b
+                cost = (p_tokens / 1000.0) * 0.0001 + (c_tokens / 1000.0) * 0.0001
+                
+            saved_by_cache = random.choice([0, 0, 0, 0, 1]) if current_team_spend > 2.0 else 0
             if saved_by_cache:
                 cost = 0.0
-                savings = (p_tokens / 1000.0) * 0.005 + (c_tokens / 1000.0) * 0.025
+                savings = (p_tokens / 1000.0) * 0.015 + (c_tokens / 1000.0) * 0.075
                 reason = "Cache Semantica Hit (Sim Match: 88%)"
             else:
-                premium_cost = (p_tokens / 1000.0) * 0.005 + (c_tokens / 1000.0) * 0.025
+                premium_cost = (p_tokens / 1000.0) * 0.015 + (c_tokens / 1000.0) * 0.075
                 savings = max(0.0, premium_cost - cost)
                 reason = random.choice(REASONS)
                 
+            log_time = start_time + timedelta(hours=random.randint(1, 160))
+            
+            prompt = random.choice(PROMPTS)
+            response = random.choice(RESPONSES)
+            
             log_entries.append((
                 log_time.strftime("%Y-%m-%d %H:%M:%S"),
                 team,
@@ -156,7 +158,9 @@ def seed():
                 savings,
                 reason
             ))
+            current_team_spend += cost
             
+    # Insertar logs
     cursor.executemany(
         """
         INSERT INTO logs (timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason)
