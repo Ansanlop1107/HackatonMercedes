@@ -38,11 +38,27 @@ logger = logging.getLogger("ai_finops_proxy.router")
 
 # Clasificación de los consumidores y sus prioridades según el diseño
 CONSUMER_PRIORITIES = {
-    "mercedes-drive-assistant": "critical",
-    "mercedes-analytics-dashboard": "standard",
-    "mercedes-lab-experiments": "experimental",
+    # Equipos de demostración existentes
     "equipo-marketing": "standard",
-    "equipo-producto": "standard"
+    "equipo-producto": "standard",
+    
+    # Prioridad ALTA (Acceso a Modelos Premium / Caros)
+    "ingenieria-desarrollo": "critical",
+    "legal-compliance": "critical",
+    "datos-ia": "critical",
+    "direccion-estrategia": "critical",
+    
+    # Prioridad MEDIA (Acceso a Modelos Estándar / Mixto)
+    "marketing-contenidos": "standard",
+    "ventas": "standard",
+    "producto": "standard",
+    "finanzas": "standard",
+    
+    # Prioridad BAJA (Acceso a Modelos Económicos / Rápidos)
+    "atencion-cliente": "experimental",
+    "recursos-humanos": "experimental",
+    "soporte-ti": "experimental",
+    "administracion-operaciones": "experimental"
 }
 
 class DecisionRouter:

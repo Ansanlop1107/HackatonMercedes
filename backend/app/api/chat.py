@@ -1,8 +1,19 @@
+# -*- coding: utf-8 -*-
 import logging
 import re
+import unicodedata
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
+
+def sanitizar_header(val: str) -> str:
+    """
+    Elimina emojis y normaliza el texto a ASCII para evitar errores UnicodeEncodeError en las cabeceras HTTP.
+    """
+    if not val:
+        return ""
+    val_normalized = unicodedata.normalize('NFKD', val).encode('ascii', 'ignore').decode('ascii')
+    return "".join(c for c in val_normalized if 32 <= ord(c) < 127).strip()
 
 from fastapi import APIRouter, Header, HTTPException, Response, status
 
@@ -70,8 +81,7 @@ def _build_response(model_name: str, response_text: str, usage_data: dict, reque
 
 def _set_response_header(response: Response, header_name: str, value: str) -> None:
     """Set a response header using an ASCII-safe fallback for non-ASCII characters."""
-    safe_value = value.encode("ascii", "replace").decode("ascii")
-    response.headers[header_name] = safe_value
+    response.headers[header_name] = sanitizar_header(value)
 
 
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
@@ -107,7 +117,7 @@ async def chat_completions(
             conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Consumidor '{x_consumer_id}' no registrado o no autorizado en el sistema de Mercedes.",
+                detail=f"Consumidor '{x_consumer_id}' no registrado o no autorizado en el sistema corporativo.",
             )
 
         budget = float(consumer["budget"])

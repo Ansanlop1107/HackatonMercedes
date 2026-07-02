@@ -31,14 +31,25 @@ def init_db():
         )
     """)
     
-    # Insertar consumidores de prueba (equipo-marketing, equipo-producto y consumidores de Mercedes)
-    # Usamos INSERT OR IGNORE para no duplicar datos si se vuelve a correr el script
+    # Insertar consumidores de prueba (los 12 equipos departamentales con sus presupuestos)
     test_consumers = [
         ("equipo-marketing", 10.00, 0.00),
         ("equipo-producto", 10.00, 0.00),
-        ("mercedes-drive-assistant", 100.00, 0.00),
-        ("mercedes-analytics-dashboard", 50.00, 0.00),
-        ("mercedes-lab-experiments", 10.00, 0.00)
+        # Alta Prioridad
+        ("ingenieria-desarrollo", 150.00, 0.00),
+        ("legal-compliance", 100.00, 0.00),
+        ("datos-ia", 100.00, 0.00),
+        ("direccion-estrategia", 200.00, 0.00),
+        # Media Prioridad
+        ("marketing-contenidos", 50.00, 0.00),
+        ("ventas", 50.00, 0.00),
+        ("producto", 50.00, 0.00),
+        ("finanzas", 75.00, 0.00),
+        # Baja Prioridad
+        ("atencion-cliente", 15.00, 0.00),
+        ("recursos-humanos", 15.00, 0.00),
+        ("soporte-ti", 15.00, 0.00),
+        ("administracion-operaciones", 20.00, 0.00)
     ]
     
     cursor.executemany("""
