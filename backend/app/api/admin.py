@@ -135,7 +135,7 @@ async def list_logs(consumer_id: Optional[str] = None, limit: int = 50):
         cursor = conn.cursor()
         if consumer_id:
             cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason
+                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type
                 FROM logs 
                 WHERE consumer_id = ?
                 ORDER BY id DESC 
@@ -143,7 +143,7 @@ async def list_logs(consumer_id: Optional[str] = None, limit: int = 50):
             """, (consumer_id, limit))
         else:
             cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason
+                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type
                 FROM logs 
                 ORDER BY id DESC 
                 LIMIT ?

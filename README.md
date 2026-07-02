@@ -114,7 +114,7 @@ El núcleo inteligente del proxy. Evalúa múltiples dimensiones de la solicitud
 La interfaz de administración proporciona visibilidad total C-Level:
 
 - **Métrica Estrella - Total Savings:** Un contador en tiempo real que demuestra el ROI del proxy, acumulando el coste ahorrado gracias al uso de la caché semántica y al desvío inteligente hacia modelos locales más baratos.
-- **Gráfica Predictiva (Regresión Lineal):** Analiza la tendencia de gasto diaria de cada departamento y predice en qué fecha exacta se quedarán sin presupuesto si continúan con el mismo ritmo de consumo.
+- **Proyección de Consumo:** Analiza la tendencia media diaria de gasto de cada departamento y proyecta cuánto presupuesto quedará disponible en los próximos días si se mantiene el mismo ritmo de consumo.
 - **Audit Trail & Alertas:** Tabla interactiva que registra todos los bloqueos por seguridad (Prompt Injection), desvíos por privacidad (PII) y peticiones bloqueadas por presupuesto superado.
 
 ---

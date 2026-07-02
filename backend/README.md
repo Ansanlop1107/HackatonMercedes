@@ -34,6 +34,13 @@ docker compose up -d
 ```
 *(Puedes verificar que estén corriendo con `docker ps`).*
 
+Si los modelos no están descargados todavía, ejecútalos manualmente en los contenedores:
+```bash
+docker exec ollama-provider-a ollama pull llama3.2:3b
+docker exec ollama-provider-b ollama pull mistral:7b
+```
+Ambos procesos tardan unos minutos en completarse la primera vez.
+
 ---
 
 ### 2. Configurar el Entorno Virtual de Python
@@ -62,26 +69,28 @@ pip install fastapi uvicorn litellm python-dotenv pandas
 ---
 
 ### 4. Configurar las Claves API (`.env`)
-LiteLLM requiere de claves de API de los proveedores cloud para enrutar los modelos externos. Crea un archivo llamado `.env` en la carpeta `backend/` (`backend/.env`) e ingresa tus credenciales según corresponda:
+Para la demo del hackathon, los modelos cloud están mockeados por defecto para evitar costes reales. Copia el archivo de ejemplo:
+
+```bash
+cp .env.example .env
+```
+
+El archivo resultante permite activar las llamadas reales en el futuro si consigues keys de pago:
 
 ```ini
-# --- CLAVES API CLOUD ---
-# Groq (Obligatorio para simular el enrutamiento económico Llama3.1)
-GROQ_API_KEY=gsk_tu_clave_de_groq_aqui
-
-# OpenAI (Opcional - para modelos GPT)
-OPENAI_API_KEY=sk-proj-tu_clave_de_openai_aqui
-
-# Anthropic (Opcional - para modelos Claude)
-ANTHROPIC_API_KEY=sk-ant-tu_clave_de_anthropic_aqui
-
-# Google Gemini (Opcional)
-GEMINI_API_KEY=tu_clave_de_gemini_aqui
+MOCK_CLOUD_PROVIDERS=true
 
 # --- CONFIGURACIÓN DE OLLAMA LOCAL ---
 OLLAMA_PROVIDER_A_URL=http://localhost:11434
 OLLAMA_PROVIDER_B_URL=http://localhost:11435
+
+# --- CLAVES API CLOUD (solo si activas llamadas reales) ---
+# GROQ_API_KEY=your_groq_api_key_here
+# OPENAI_API_KEY=your_openai_api_key_here
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
+
+Si luego quieres pasar a llamadas reales, cambia `MOCK_CLOUD_PROVIDERS=false` y añade tus keys reales. El backend seguirá usando Ollama local para los modelos locales.
 
 ---
 

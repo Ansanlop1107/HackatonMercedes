@@ -68,6 +68,12 @@ def _build_response(model_name: str, response_text: str, usage_data: dict, reque
     )
 
 
+def _set_response_header(response: Response, header_name: str, value: str) -> None:
+    """Set a response header using an ASCII-safe fallback for non-ASCII characters."""
+    safe_value = value.encode("ascii", "replace").decode("ascii")
+    response.headers[header_name] = safe_value
+
+
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
     request: ChatCompletionRequest,
@@ -94,6 +100,11 @@ async def chat_completions(
 
         if not consumer:
             logger.warning(f"[PROXY] Consumidor '{x_consumer_id}' intentó acceder pero no está registrado.")
+            cursor.execute(
+                "INSERT INTO logs (consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.0, ?, ?)",
+                (x_consumer_id, user_prompt if 'user_prompt' in locals() else '', 'Consumidor no autorizado', 'blocked', 0.0, 'Consumidor no registrado', 'blocked_budget'),
+            )
+            conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Consumidor '{x_consumer_id}' no registrado o no autorizado en el sistema de Mercedes.",
@@ -130,6 +141,11 @@ async def chat_completions(
             logger.warning(
                 f"[PROXY] Consumidor '{x_consumer_id}' excedió su presupuesto (${current_spend:.6f}/${budget:.2f}). Petición bloqueada."
             )
+            cursor.execute(
+                "INSERT INTO logs (consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.0, ?, ?)",
+                (x_consumer_id, user_prompt, 'Presupuesto excedido', 'blocked', 0.0, 'Presupuesto excedido', 'blocked_budget'),
+            )
+            conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Presupuesto excedido. Solicite una ampliación de crédito FinOps.",
@@ -163,12 +179,17 @@ async def chat_completions(
         
         est_cost = ((est_input_tokens / 1000.0) * props["input_cost"]) + ((est_output_tokens / 1000.0) * props["output_cost"])
         
-        if current_spend + est_cost >= budget:
+        if current_spend >= budget or current_spend + est_cost >= budget:
             logger.warning(
                 f"[PROXY] Presupuesto superado con la estimación de la llamada. Gasto actual: ${current_spend:.6f} | Est. Petición: ${est_cost:.6f} | Límite: ${budget:.2f}"
             )
+            cursor.execute(
+                "INSERT INTO logs (consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.0, ?, ?)",
+                (x_consumer_id, user_prompt, 'Estimación de costo supera presupuesto', 'blocked', 0.0, 'Estimación de coste supera el presupuesto', 'blocked_budget'),
+            )
+            conn.commit()
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Gobernanza FinOps: La estimación de coste de esta petición (${est_cost:.4f}) superaría tu límite presupuestario mensual."
             )
 
@@ -225,12 +246,12 @@ async def chat_completions(
             conn.commit()
             
             # Cabeceras de Respuesta para Cache Hit
-            response.headers["X-Model-Selected"] = final_model
-            response.headers["X-Actions-Applied"] = "cache_hit"
-            response.headers["X-Routing-Restriction"] = routing_restriction
-            response.headers["X-Sensitive-Data-Detected"] = ",".join(detected_types) if detected_types else "none"
-            response.headers["X-FinOps-Cache"] = "hit"
-            response.headers["X-Routing-Reason"] = f"Caché Semántica Hit ({best_sim*100:.0f}% similitud)"
+            _set_response_header(response, "X-Model-Selected", final_model)
+            _set_response_header(response, "X-Actions-Applied", "cache_hit")
+            _set_response_header(response, "X-Routing-Restriction", routing_restriction)
+            _set_response_header(response, "X-Sensitive-Data-Detected", ",".join(detected_types) if detected_types else "none")
+            _set_response_header(response, "X-FinOps-Cache", "hit")
+            _set_response_header(response, "X-Routing-Reason", f"Caché Semántica Hit ({best_sim*100:.0f}% similitud)")
             
             usage_data = {
                 "prompt_tokens": est_p_tokens,
@@ -300,12 +321,12 @@ async def chat_completions(
         conn.commit()
         
         # Cabeceras de Respuesta para Cache Miss
-        response.headers["X-Model-Selected"] = final_model
-        response.headers["X-Actions-Applied"] = ",".join(applied_actions) if applied_actions else "none"
-        response.headers["X-Routing-Restriction"] = routing_restriction
-        response.headers["X-Sensitive-Data-Detected"] = ",".join(detected_types) if detected_types else "none"
-        response.headers["X-FinOps-Cache"] = "miss"
-        response.headers["X-Routing-Reason"] = routing_reason
+        _set_response_header(response, "X-Model-Selected", final_model)
+        _set_response_header(response, "X-Actions-Applied", ",".join(applied_actions) if applied_actions else "none")
+        _set_response_header(response, "X-Routing-Restriction", routing_restriction)
+        _set_response_header(response, "X-Sensitive-Data-Detected", ",".join(detected_types) if detected_types else "none")
+        _set_response_header(response, "X-FinOps-Cache", "miss")
+        _set_response_header(response, "X-Routing-Reason", routing_reason)
         
         return _build_response(final_model, response_text, usage_data_normalized, f"chatcmpl-{uuid4()}")
     finally:

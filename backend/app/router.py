@@ -40,7 +40,9 @@ logger = logging.getLogger("ai_finops_proxy.router")
 CONSUMER_PRIORITIES = {
     "mercedes-drive-assistant": "critical",
     "mercedes-analytics-dashboard": "standard",
-    "mercedes-lab-experiments": "experimental"
+    "mercedes-lab-experiments": "experimental",
+    "equipo-marketing": "standard",
+    "equipo-producto": "standard"
 }
 
 class DecisionRouter:
@@ -82,7 +84,7 @@ class DecisionRouter:
         if routing_restriction == "force_local":
             applied_actions.append("force_local_model")
             final_model = "llama3.2:3b"
-            routing_reason = "🔒 DLP: Contiene datos personales o PII. Forzado modelo local Llama3.2 por cumplimiento GDPR."
+            routing_reason = "DLP: Contiene datos personales o PII. Forzado modelo local Llama3.2 por cumplimiento GDPR."
             logger.info(f"[ROUTER] [RULE A] {routing_reason}")
             return final_model, final_prompt, applied_actions, routing_reason
 
@@ -91,7 +93,7 @@ class DecisionRouter:
         if budget_usage > 0.80:
             applied_actions.append("activate_savings_mode")
             final_model = "llama3.2:3b"
-            routing_reason = "⚠️ WHEN: Gasto departamental supera el 80% del presupuesto. Forzado modelo económico local para ahorro."
+            routing_reason = "WHEN: Gasto departamental supera el 80% del presupuesto. Forzado modelo económico local para ahorro."
             logger.warning(f"[ROUTER] [RULE B] {routing_reason}")
             return final_model, final_prompt, applied_actions, routing_reason
 
@@ -99,7 +101,7 @@ class DecisionRouter:
         if priority == "experimental":
             applied_actions.append("force_low_cost_model")
             final_model = "llama3.2:3b"
-            routing_reason = "🧪 WHO: Consumidor de laboratorio experimental. Forzado modelo económico local."
+            routing_reason = "WHO: Consumidor de laboratorio experimental. Forzado modelo económico local."
             logger.info(f"[ROUTER] [RULE C] {routing_reason}")
             return final_model, final_prompt, applied_actions, routing_reason
 
@@ -109,7 +111,7 @@ class DecisionRouter:
             if file_type.startswith("image/"):
                 final_model = "gpt-5.4-mini"
                 applied_actions.append("route_vision_model")
-                routing_reason = f"👁️ MODALIDAD: Adjunta archivo de imagen ({file_name}). Enrutado a GPT-5.4-mini con soporte de visión."
+                routing_reason = f"MODALIDAD: Adjunta archivo de imagen ({file_name}). Enrutado a GPT-5.4-mini con soporte de visión."
                 logger.info(f"[ROUTER] [RULE D - VISION] {routing_reason}")
                 return final_model, final_prompt, applied_actions, routing_reason
                 
@@ -123,11 +125,11 @@ class DecisionRouter:
                 if is_complex and has_justification:
                     final_model = "claude-opus-4.7"
                     applied_actions.append("route_premium_analytical")
-                    routing_reason = f"📊 MODALIDAD: Análisis de datos complejos ({file_name}). Enrutado a Claude Opus."
+                    routing_reason = f"MODALIDAD: Análisis de datos complejos ({file_name}). Enrutado a Claude Opus."
                 else:
                     final_model = "gpt-5.4-mini"
                     applied_actions.append("route_analytical_model")
-                    routing_reason = f"📊 MODALIDAD: Análisis de datos ({file_name}). Enrutado a GPT-5.4-mini (Code Interpreter)."
+                    routing_reason = f"MODALIDAD: Análisis de datos ({file_name}). Enrutado a GPT-5.4-mini (Code Interpreter)."
                 logger.info(f"[ROUTER] [RULE D - DATA] {routing_reason}")
                 return final_model, final_prompt, applied_actions, routing_reason
 
@@ -139,7 +141,7 @@ class DecisionRouter:
         if total_tokens > 8000:
             final_model = "llama-3.1-8b-instant"  # Groq 128k context y coste mínimo
             applied_actions.append("route_long_context_model")
-            routing_reason = f"📚 CONTEXTO: Contexto largo ({total_tokens} tokens > 8k). Enrutado a Llama 3.1 8b en Groq (128k window)."
+            routing_reason = f"CONTEXTO: Contexto largo ({total_tokens} tokens > 8k). Enrutado a Llama 3.1 8b en Groq (128k window)."
             logger.info(f"[ROUTER] [RULE E] {routing_reason}")
             return final_model, final_prompt, applied_actions, routing_reason
 
@@ -147,40 +149,38 @@ class DecisionRouter:
         if require_json:
             final_model = "llama-3.1-8b-instant"
             applied_actions.append("route_json_model")
-            routing_reason = "⚙️ FORMATO: Requisito JSON estricto. Enrutado a Llama 3.1 8b (JSON mode)."
+            routing_reason = "FORMATO: Requisito JSON estricto. Enrutado a Llama 3.1 8b (JSON mode)."
             logger.info(f"[ROUTER] [RULE F] {routing_reason}")
             return final_model, final_prompt, applied_actions, routing_reason
 
-        # --- REGLA G: Requisito de Latencia / Urgencia ---
-        if urgency == "real-time":
-            final_model = "llama-3.1-8b-instant"  # Groq LPU fast execution
-            applied_actions.append("route_low_latency_model")
-            routing_reason = "⚡ LATENCIA: Requisito urgente (real-time). Enrutado a Groq LPU (Llama 3.1)."
-            logger.info(f"[ROUTER] [RULE G] {routing_reason}")
-            return final_model, final_prompt, applied_actions, routing_reason
-
-        # --- REGLA H: Complejidad Semántica NLP ---
+        # --- REGLA G: Complejidad Semántica NLP ---
         nlp_text = (prompt + " " + (file_content or "")).lower()
         complex_keywords = ["código", "algoritmo", "matemática", "lógica", "refactor", "optimize", "complejo", "integral", "recursivo", "sql", "python", "clase", "función"]
         is_complex = any(kw in nlp_text for kw in complex_keywords)
-        
-        if is_complex or priority == "standard":
-            # Para tareas complejas en prioridad estándar
-            if is_complex:
-                if has_justification:
-                    final_model = "claude-opus-4.7"
-                    applied_actions.append("route_premium_complexity")
-                    routing_reason = "🧠 NLP: Tarea compleja/lógica con justificación. Enrutado a Claude Opus."
-                else:
-                    final_model = "gpt-5.4-mini"
-                    applied_actions.append("degrade_model")
-                    routing_reason = "🧠 NLP: Tarea compleja sin justificación. Degradado a GPT-5.4-mini."
-                logger.info(f"[ROUTER] [RULE H] {routing_reason}")
-                return final_model, final_prompt, applied_actions, routing_reason
+
+        if is_complex:
+            if has_justification:
+                final_model = "claude-opus-4.7"
+                applied_actions.append("route_premium_complexity")
+                routing_reason = "NLP: Tarea compleja/lógica con justificación. Enrutado a Claude Opus."
+            else:
+                final_model = "gpt-5.4-mini"
+                applied_actions.append("degrade_model")
+                routing_reason = "NLP: Tarea compleja sin justificación. Degradado a GPT-5.4-mini."
+            logger.info(f"[ROUTER] [RULE G] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
+
+        # --- REGLA H: Requisito de Latencia / Urgencia ---
+        if urgency == "real-time":
+            final_model = "llama-3.1-8b-instant"  # Groq LPU fast execution
+            applied_actions.append("route_low_latency_model")
+            routing_reason = "LATENCIA: Requisito urgente (real-time). Enrutado a Groq LPU (Llama 3.1)."
+            logger.info(f"[ROUTER] [RULE H] {routing_reason}")
+            return final_model, final_prompt, applied_actions, routing_reason
 
         # Tareas sencillas / por defecto
         final_model = "llama-3.1-8b-instant"
         applied_actions.append("route_basic_simplicity")
-        routing_reason = "💰 NLP: Tarea estándar/sencilla. Enrutado a modelo económico Llama 3.1 8b en Groq."
+        routing_reason = "NLP: Tarea estándar/sencilla. Enrutado a modelo económico Llama 3.1 8b en Groq."
         logger.info(f"[ROUTER] [RULE H - DEFAULT] {routing_reason}")
         return final_model, final_prompt, applied_actions, routing_reason

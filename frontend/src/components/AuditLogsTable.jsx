@@ -127,7 +127,7 @@ export default function AuditLogsTable({ logs, stats }) {
               <th style={{ padding: '12px 8px' }}>Coste (USD)</th>
               <th style={{ padding: '12px 8px' }}>Ahorro (USD)</th>
               <th style={{ padding: '12px 8px' }}>Motivo de Enrutado</th>
-              <th style={{ padding: '12px 8px' }}>Caché</th>
+              <th style={{ padding: '12px 8px' }}>Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -158,7 +158,11 @@ export default function AuditLogsTable({ logs, stats }) {
                   {log.routing_reason || 'N/A'}
                 </td>
                 <td style={{ padding: '12px 8px' }}>
-                  {log.saved_by_cache ? (
+                  {log.event_type === 'blocked_security' || log.event_type === 'blocked_budget' ? (
+                    <span style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                      {log.event_type === 'blocked_security' ? 'BLOQUEADO' : 'PRESUPUESTO'}
+                    </span>
+                  ) : log.saved_by_cache ? (
                     <span style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
                       HIT
                     </span>

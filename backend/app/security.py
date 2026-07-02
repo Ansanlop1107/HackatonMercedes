@@ -3,6 +3,8 @@ import logging
 from typing import Tuple, List
 from fastapi import HTTPException, status
 
+from app.db import get_db_connection
+
 logger = logging.getLogger("ai_finops_proxy.security")
 
 # 1. Palabras clave a bloquear para evitar Prompt Injection (case-insensitive)
@@ -44,6 +46,14 @@ class SecurityLayer:
         for keyword in PROMPT_INJECTION_KEYWORDS:
             if keyword in prompt_lower:
                 logger.error(f"[SECURITY] Intento de Prompt Injection detectado. Palabra clave prohibida: '{keyword}'")
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO logs (consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.0, ?, ?)",
+                    ('unknown', prompt, 'Prompt injection bloqueado', 'blocked', 0.0, 'Intento de prompt injection detectado', 'blocked_security'),
+                )
+                conn.commit()
+                conn.close()
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="ALERTA CRÍTICA: Intento de manipulación del sistema (Prompt Injection) bloqueado"

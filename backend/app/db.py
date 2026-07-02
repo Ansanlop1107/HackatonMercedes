@@ -61,6 +61,7 @@ def init_db():
             completion_tokens INTEGER NOT NULL DEFAULT 0,
             savings REAL NOT NULL DEFAULT 0.0,
             routing_reason TEXT NOT NULL DEFAULT '',
+            event_type TEXT NOT NULL DEFAULT 'success',
             FOREIGN KEY(consumer_id) REFERENCES consumers(id)
         )
     """)
@@ -81,6 +82,9 @@ def init_db():
     if "routing_reason" not in columns:
         print("[MIGRATION] Añadiendo columna 'routing_reason' a la tabla 'logs'")
         cursor.execute("ALTER TABLE logs ADD COLUMN routing_reason TEXT NOT NULL DEFAULT ''")
+    if "event_type" not in columns:
+        print("[MIGRATION] Añadiendo columna 'event_type' a la tabla 'logs'")
+        cursor.execute("ALTER TABLE logs ADD COLUMN event_type TEXT NOT NULL DEFAULT 'success'")
     
     conn.commit()
     conn.close()
