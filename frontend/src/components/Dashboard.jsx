@@ -26,8 +26,8 @@ export default function Dashboard({ user, apiUrl }) {
       const statsData = await statsRes.json();
       setStats(statsData);
 
-      // Fetch Logs (load up to 200 logs for client-side filtering)
-      const logsRes = await apiFetch(`${apiUrl}/v1/admin/logs?limit=200`);
+      // Fetch Logs (load up to 10000 logs for client-side filtering)
+      const logsRes = await apiFetch(`${apiUrl}/v1/admin/logs?limit=10000`);
       if (!logsRes.ok) throw new Error('Error al cargar logs.');
       const logsData = await logsRes.json();
       setLogs(logsData);
