@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import unittest
+import os
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
+import app.db as db_module
 from app.api import chat as chat_module
 from app.db import get_db_connection, init_db
 from app.main import app
@@ -11,10 +13,22 @@ from app.router import DecisionRouter
 class ChatEndpointTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Redirigir base de datos a un archivo de prueba para no borrar la base de datos de producción/desarrollo
+        cls.test_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_finops.db")
+        db_module.DATABASE_PATH = cls.test_db_path
         init_db()
 
+    @classmethod
+    def tearDownClass(cls):
+        # Limpiar archivo de base de datos de prueba
+        if os.path.exists(cls.test_db_path):
+            try:
+                os.remove(cls.test_db_path)
+            except Exception:
+                pass
+
     def setUp(self):
-        # Asegurar que los consumidores del test estén registrados con presupuestos limpios y logs vacíos
+        # Asegurar que los consumidores del test estén registrados con presupuestos limpios y logs vacíos en la base de datos de prueba
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM logs")

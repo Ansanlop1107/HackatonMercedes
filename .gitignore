@@ -1,9 +1,5 @@
 __pycache__/
 *.py[cod]
-*.db
 .env
 node_modules/
 backend/.env
-backend/finops.db
-backend/app/finops.db
-frontend/finops.db
