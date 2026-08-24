@@ -1,29 +1,26 @@
 import React, { useState } from 'react';
 import { FileText, Search } from 'lucide-react';
 
-export default function AuditLogsTable({ logs, stats }) {
-  // Search & Filter states for Audit Log
-  const [searchPrompt, setSearchPrompt] = useState('');
-  const [filterModel, setFilterModel] = useState('all');
-  const [filterCache, setFilterCache] = useState('all');
-  const [filterDept, setFilterDept] = useState('all');
-
-  // Client-side filtering of logs
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.prompt.toLowerCase().includes(searchPrompt.toLowerCase());
-    
-    const matchesModel = filterModel === 'all' || 
-      (filterModel === 'economy' && (log.model_used.includes('llama') || log.model_used.includes('mistral')) && log.saved_by_cache === 0) ||
-      (filterModel === 'premium' && (log.model_used.includes('gpt') || log.model_used.includes('claude')) && log.saved_by_cache === 0);
-
-    const matchesCache = filterCache === 'all' ||
-      (filterCache === 'hit' && log.saved_by_cache === 1) ||
-      (filterCache === 'miss' && log.saved_by_cache === 0);
-
-    const matchesDept = filterDept === 'all' || log.consumer_id === filterDept;
-
-    return matchesSearch && matchesModel && matchesCache && matchesDept;
-  });
+export default function AuditLogsTable({ 
+  logsData, 
+  stats, 
+  logsLoading,
+  logsPage,
+  setLogsPage,
+  logsLimit,
+  setLogsLimit,
+  searchPrompt,
+  onSearchChange,
+  filterModel,
+  onModelFilterChange,
+  filterCache,
+  onCacheFilterChange,
+  filterDept,
+  onDeptFilterChange
+}) {
+  const logs = logsData.items || [];
+  const total = logsData.total || 0;
+  const pages = logsData.pages || 1;
 
   return (
     <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -36,7 +33,7 @@ export default function AuditLogsTable({ logs, stats }) {
           </h3>
         </div>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          Mostrando {filteredLogs.length} de {logs.length} transacciones
+          {logsLoading ? 'Cargando...' : `Mostrando ${logs.length} de ${total} transacciones`}
         </span>
       </div>
 
@@ -61,7 +58,7 @@ export default function AuditLogsTable({ logs, stats }) {
               style={{ padding: '8px 12px 8px 32px', fontSize: '13px' }}
               placeholder="Ej: consulta, análisis..."
               value={searchPrompt}
-              onChange={(e) => setSearchPrompt(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
             />
             <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '12px' }} />
           </div>
@@ -74,7 +71,7 @@ export default function AuditLogsTable({ logs, stats }) {
             className="select-field" 
             style={{ padding: '8px 12px', fontSize: '13px' }}
             value={filterModel}
-            onChange={(e) => setFilterModel(e.target.value)}
+            onChange={(e) => onModelFilterChange(e.target.value)}
           >
             <option value="all">Todos los modelos</option>
             <option value="economy">Modelos Económicos (Llama3/Mistral)</option>
@@ -89,7 +86,7 @@ export default function AuditLogsTable({ logs, stats }) {
             className="select-field" 
             style={{ padding: '8px 12px', fontSize: '13px' }}
             value={filterCache}
-            onChange={(e) => setFilterCache(e.target.value)}
+            onChange={(e) => onCacheFilterChange(e.target.value)}
           >
             <option value="all">Todos los estados</option>
             <option value="hit">Cache HIT (ahorro)</option>
@@ -104,7 +101,7 @@ export default function AuditLogsTable({ logs, stats }) {
             className="select-field" 
             style={{ padding: '8px 12px', fontSize: '13px' }}
             value={filterDept}
-            onChange={(e) => setFilterDept(e.target.value)}
+            onChange={(e) => onDeptFilterChange(e.target.value)}
           >
             <option value="all">Todos los equipos</option>
             {stats && stats.departments && stats.departments.map(d => (
@@ -131,7 +128,7 @@ export default function AuditLogsTable({ logs, stats }) {
             </tr>
           </thead>
           <tbody>
-            {filteredLogs.map((log) => (
+            {logs.map((log) => (
               <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }}>
                 <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>{log.timestamp}</td>
                 <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{log.consumer_id}</td>
@@ -172,7 +169,7 @@ export default function AuditLogsTable({ logs, stats }) {
                 </td>
               </tr>
             ))}
-            {filteredLogs.length === 0 && (
+            {logs.length === 0 && (
               <tr>
                 <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                   No se encontraron transacciones. El sistema está limpio y listo para registrar nuevos consumos.
@@ -181,6 +178,80 @@ export default function AuditLogsTable({ logs, stats }) {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Paginación */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: '16px',
+        paddingTop: '16px',
+        borderTop: '1px solid var(--glass-border)',
+        flexWrap: 'wrap',
+        gap: '12px',
+        fontSize: '13px'
+      }}>
+        {/* Selector de límite por página */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>Mostrar</span>
+          <select
+            className="select-field"
+            style={{ padding: '4px 8px', fontSize: '12px', width: '70px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }}
+            value={logsLimit}
+            onChange={(e) => {
+              setLogsLimit(parseInt(e.target.value));
+              setLogsPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span style={{ color: 'var(--text-secondary)' }}>registros</span>
+        </div>
+
+        {/* Botones de navegación de página */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            className="btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '12px', minWidth: 'auto' }}
+            onClick={() => setLogsPage(1)}
+            disabled={logsPage === 1 || logsLoading}
+          >
+            « Primero
+          </button>
+          <button
+            className="btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '12px', minWidth: 'auto' }}
+            onClick={() => setLogsPage(prev => Math.max(1, prev - 1))}
+            disabled={logsPage === 1 || logsLoading}
+          >
+            ‹ Anterior
+          </button>
+          
+          <span style={{ color: 'var(--text-primary)', padding: '0 8px', fontWeight: '600' }}>
+            Página {logsPage} de {pages}
+          </span>
+
+          <button
+            className="btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '12px', minWidth: 'auto' }}
+            onClick={() => setLogsPage(prev => Math.min(pages, prev + 1))}
+            disabled={logsPage === pages || logsLoading}
+          >
+            Siguiente ›
+          </button>
+          <button
+            className="btn-secondary"
+            style={{ padding: '5px 10px', fontSize: '12px', minWidth: 'auto' }}
+            onClick={() => setLogsPage(pages)}
+            disabled={logsPage === pages || logsLoading}
+          >
+            Último »
+          </button>
+        </div>
       </div>
 
     </div>

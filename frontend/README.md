@@ -42,11 +42,11 @@ npm install
 ```
 
 ### 3. Configurar la URL del API Backend
-Abre el archivo [App.jsx](file:///d:/HackatonFinal/frontend/src/App.jsx) en tu editor. Ubica la constante `API_URL` en las primeras líneas del archivo y configúrala para que apunte a tu proxy local o a la URL pública generada por ngrok:
+Abre el archivo [App.jsx](./src/App.jsx) en tu editor. Ubica la constante `API_URL` en las primeras líneas del archivo y configúrala para que apunte a tu proxy local o a la URL pública generada por ngrok:
 
 ```javascript
 // Para desarrollo en local directo:
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:8080';
 
 // O si expones tu backend con ngrok para testing remoto:
 const API_URL = 'https://tu-subdominio.ngrok-free.dev';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   DollarSign, Landmark, PiggyBank, TrendingUp, RefreshCw, ShieldAlert 
 } from 'lucide-react';
@@ -9,7 +9,14 @@ import { apiFetch } from '../services/apiFetch';
 
 export default function Dashboard({ user, apiUrl }) {
   const [stats, setStats] = useState(null);
-  const [logs, setLogs] = useState([]);
+  const [logsData, setLogsData] = useState({ items: [], total: 0, page: 1, limit: 50, pages: 1 });
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsLimit, setLogsLimit] = useState(50);
+  const [searchPrompt, setSearchPrompt] = useState('');
+  const [filterModel, setFilterModel] = useState('all');
+  const [filterCache, setFilterCache] = useState('all');
+  const [filterDept, setFilterDept] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [adminMessage, setAdminMessage] = useState(null);
@@ -25,13 +32,6 @@ export default function Dashboard({ user, apiUrl }) {
       if (!statsRes.ok) throw new Error('Error al cargar estadísticas.');
       const statsData = await statsRes.json();
       setStats(statsData);
-
-      // Fetch Logs (load up to 10000 logs for client-side filtering)
-      const logsRes = await apiFetch(`${apiUrl}/v1/admin/logs?limit=10000`);
-      if (!logsRes.ok) throw new Error('Error al cargar logs.');
-      const logsData = await logsRes.json();
-      setLogs(logsData);
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,9 +39,57 @@ export default function Dashboard({ user, apiUrl }) {
     }
   };
 
+  const fetchLogs = useCallback(async () => {
+    try {
+      setLogsLoading(true);
+      const queryParams = new URLSearchParams({
+        page: logsPage.toString(),
+        limit: logsLimit.toString(),
+        filter_model: filterModel,
+        filter_cache: filterCache,
+      });
+      if (searchPrompt) queryParams.append('search', searchPrompt);
+      if (filterDept && filterDept !== 'all') queryParams.append('consumer_id', filterDept);
+
+      const logsRes = await apiFetch(`${apiUrl}/v1/admin/logs?${queryParams.toString()}`);
+      if (!logsRes.ok) throw new Error('Error al cargar logs.');
+      const data = await logsRes.json();
+      setLogsData(data);
+    } catch (err) {
+      console.error('Error al cargar logs:', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [apiUrl, logsPage, logsLimit, searchPrompt, filterModel, filterCache, filterDept]);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchLogs();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [fetchLogs]);
+
+  const handleSearchChange = (val) => {
+    setSearchPrompt(val);
+    setLogsPage(1);
+  };
+  const handleModelFilterChange = (val) => {
+    setFilterModel(val);
+    setLogsPage(1);
+  };
+  const handleCacheFilterChange = (val) => {
+    setFilterCache(val);
+    setLogsPage(1);
+  };
+  const handleDeptFilterChange = (val) => {
+    setFilterDept(val);
+    setLogsPage(1);
+  };
 
   const handleUpdateBudget = async (deptId, budgetAmount) => {
     if (!budgetAmount || isNaN(budgetAmount)) return false;
@@ -108,6 +156,13 @@ export default function Dashboard({ user, apiUrl }) {
       
       setAdminMessage({ type: 'success', text: "Base de datos restablecida correctamente. Todos los consumos vuelven a $0.00." });
       fetchDashboardData();
+      
+      // Reiniciar filtros y página de logs
+      setLogsPage(1);
+      setSearchPrompt('');
+      setFilterModel('all');
+      setFilterCache('all');
+      setFilterDept('all');
     } catch (err) {
       setAdminMessage({ type: 'error', text: err.message });
     } finally {
@@ -131,7 +186,7 @@ export default function Dashboard({ user, apiUrl }) {
         <ShieldAlert size={48} color="var(--color-error)" style={{ marginBottom: '16px' }} />
         <h3 style={{ fontSize: '20px', color: 'var(--text-primary)' }}>Error en la Pasarela de Administración</h3>
         <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '14px' }}>{error}</p>
-        <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '12px' }}>Asegúrate de que el servidor proxy (FastAPI) está encendido en el puerto 8000.</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '4px', fontSize: '12px' }}>Asegúrate de que el servidor proxy (FastAPI) está encendido en el puerto 8080.</p>
         <button className="btn-primary" onClick={fetchDashboardData} style={{ marginTop: '20px' }}>Reintentar Conexión</button>
       </div>
     );
@@ -235,7 +290,7 @@ export default function Dashboard({ user, apiUrl }) {
       </div>
 
       {/* 2. Sección Gráficas e Distribuciones */}
-      <FinOpsCharts stats={stats} logs={logs} />
+      <FinOpsCharts stats={stats} />
 
       {/* 3. Sección Admin Control y Gestión de Presupuestos */}
       <BudgetManager 
@@ -250,7 +305,23 @@ export default function Dashboard({ user, apiUrl }) {
       />
 
       {/* 4. Tabla de Auditoría Avanzada con Filtros */}
-      <AuditLogsTable logs={logs} stats={stats} />
+      <AuditLogsTable 
+        logsData={logsData} 
+        stats={stats} 
+        logsLoading={logsLoading}
+        logsPage={logsPage}
+        setLogsPage={setLogsPage}
+        logsLimit={logsLimit}
+        setLogsLimit={setLogsLimit}
+        searchPrompt={searchPrompt}
+        onSearchChange={handleSearchChange}
+        filterModel={filterModel}
+        onModelFilterChange={handleModelFilterChange}
+        filterCache={filterCache}
+        onCacheFilterChange={handleCacheFilterChange}
+        filterDept={filterDept}
+        onDeptFilterChange={handleDeptFilterChange}
+      />
 
     </div>
   );

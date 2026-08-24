@@ -97,13 +97,13 @@ Si luego quieres pasar a llamadas reales, cambia `MOCK_CLOUD_PROVIDERS=false` y 
 ### 5. Iniciar la API de FastAPI
 Con el entorno virtual activo y el archivo `.env` configurado, arranca el servidor web ASGI ejecutando:
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 Una vez levantada, la API del proxy estará disponible en:
-- 🚀 **Servidor Local:** [http://localhost:8000](http://localhost:8000)
-- 📖 **Documentación Interactiva (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🩺 **Control de Salud (Health):** [http://localhost:8000/health](http://localhost:8000/health)
+- 🚀 **Servidor Local:** [http://localhost:8080](http://localhost:8080)
+- 📖 **Documentación Interactiva (Swagger UI):** [http://localhost:8080/docs](http://localhost:8080/docs)
+- 🩺 **Control de Salud (Health):** [http://localhost:8080/health](http://localhost:8080/health)
 
 ---
 

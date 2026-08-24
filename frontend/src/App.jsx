@@ -4,7 +4,7 @@ import Login from './components/Login';
 import Playground from './components/Playground';
 import Dashboard from './components/Dashboard';
 
-const API_URL = 'https://sprig-unmatched-recluse.ngrok-free.dev';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 function App() {
   const [user, setUser] = useState(() => {

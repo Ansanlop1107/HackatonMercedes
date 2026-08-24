@@ -3,3 +3,8 @@ __pycache__/
 .env
 node_modules/
 backend/.env
+*.db
+finops.db
+.venv/
+venv/
+dist/

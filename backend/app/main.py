@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
 from app.api.admin import router as admin_router
+from app.db import init_db
 
 # Configurar el registro de logs para visibilidad global
 logging.basicConfig(
@@ -17,6 +18,9 @@ app = FastAPI(
     description="Middleware de gestión y optimización de costes para APIs de IA Gen e Inteligencia Artificial.",
     version="0.1.0"
 )
+
+# Inicializar base de datos SQLite
+init_db()
 
 # Configurar CORS para permitir peticiones
 app.add_middleware(

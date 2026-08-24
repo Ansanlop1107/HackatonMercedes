@@ -126,31 +126,70 @@ async def update_budget(consumer_id: str, req: BudgetUpdateRequest):
     return {"status": "success", "message": f"Presupuesto de '{consumer_id}' actualizado correctamente."}
 
 @router.get("/logs")
-async def list_logs(consumer_id: Optional[str] = None, limit: int = 50):
+async def list_logs(
+    page: int = 1,
+    limit: int = 50,
+    consumer_id: Optional[str] = None,
+    filter_model: Optional[str] = "all",
+    filter_cache: Optional[str] = "all",
+    search: Optional[str] = None
+):
     """
-    Retorna la lista de logs de auditoría más recientes.
+    Retorna la lista de logs de auditoría paginados y filtrados.
     """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        if consumer_id:
-            cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type
-                FROM logs 
-                WHERE consumer_id = ?
-                ORDER BY id DESC 
-                LIMIT ?
-            """, (consumer_id, limit))
-        else:
-            cursor.execute("""
-                SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type
-                FROM logs 
-                ORDER BY id DESC 
-                LIMIT ?
-            """, (limit,))
+        
+        query = "SELECT id, timestamp, consumer_id, prompt, response, model_used, cost, saved_by_cache, prompt_tokens, completion_tokens, savings, routing_reason, event_type FROM logs WHERE 1=1"
+        count_query = "SELECT COUNT(*) as total FROM logs WHERE 1=1"
+        params = []
+        
+        if consumer_id and consumer_id != "all":
+            query += " AND consumer_id = ?"
+            count_query += " AND consumer_id = ?"
+            params.append(consumer_id)
+            
+        if search:
+            query += " AND prompt LIKE ?"
+            count_query += " AND prompt LIKE ?"
+            params.append(f"%{search}%")
+            
+        if filter_cache == "hit":
+            query += " AND saved_by_cache = 1"
+            count_query += " AND saved_by_cache = 1"
+        elif filter_cache == "miss":
+            query += " AND saved_by_cache = 0"
+            count_query += " AND saved_by_cache = 0"
+            
+        if filter_model == "economy":
+            query += " AND (model_used LIKE '%llama%' OR model_used LIKE '%mistral%') AND saved_by_cache = 0"
+            count_query += " AND (model_used LIKE '%llama%' OR model_used LIKE '%mistral%') AND saved_by_cache = 0"
+        elif filter_model == "premium":
+            query += " AND (model_used LIKE '%gpt%' OR model_used LIKE '%claude%') AND saved_by_cache = 0"
+            count_query += " AND (model_used LIKE '%gpt%' OR model_used LIKE '%claude%') AND saved_by_cache = 0"
+            
+        # Obtener cantidad total para paginación
+        cursor.execute(count_query, params)
+        total_records = cursor.fetchone()["total"]
+        
+        # Añadir ordenación y límites/offset
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        offset = (page - 1) * limit
+        cursor.execute(query, params + [limit, offset])
         logs = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        return logs
+        
+        import math
+        total_pages = math.ceil(total_records / limit) if total_records > 0 else 1
+        
+        return {
+            "items": logs,
+            "total": total_records,
+            "page": page,
+            "limit": limit,
+            "pages": total_pages
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -215,6 +254,14 @@ async def get_stats():
         """)
         daily_logs = [dict(r) for r in cursor.fetchall()]
         
+        # 4. Distribución de modelos para gráficos (agrupados)
+        cursor.execute("""
+            SELECT consumer_id, model_used, saved_by_cache, COUNT(*) as count
+            FROM logs
+            GROUP BY consumer_id, model_used, saved_by_cache
+        """)
+        model_stats = [dict(r) for r in cursor.fetchall()]
+        
         conn.close()
         
         return {
@@ -228,7 +275,8 @@ async def get_stats():
             "saved_cost_usd": saved_cost,
             "saved_cost_eur": saved_cost * 0.92,
             "departments": departments,
-            "daily_logs": daily_logs
+            "daily_logs": daily_logs,
+            "model_stats": model_stats
         }
     except Exception as e:
         raise HTTPException(

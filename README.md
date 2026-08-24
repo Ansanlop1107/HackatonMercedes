@@ -124,10 +124,10 @@ La interfaz de administración proporciona visibilidad total C-Level:
 
 El monorepo está dividido en dos grandes carpetas:
 
-- [**`backend/`**](file:///d:/HackatonFinal/backend): Código del servidor FastAPI, configuración de la base de datos SQLite (`app/finops.db`), el Decision Router y el cliente LiteLLM.
-- [**`frontend/`**](file:///d:/HackatonFinal/frontend): Interfaz gráfica modular construida en React + Vite.
+- [**`backend/`**](./backend): Código del servidor FastAPI, configuración de la base de datos SQLite (`app/finops.db`), el Decision Router y el cliente LiteLLM.
+- [**`frontend/`**](./frontend): Interfaz gráfica modular construida en React + Vite.
 
 Para ver las guías paso a paso de instalación y arranque para cada componente, por favor accede a sus respectivos archivos README:
 
-1. ⚙️ **Instalación del Servidor:** [**Guía de Instalación del Backend (FastAPI)**](file:///d:/HackatonFinal/backend/README.md)
-2. 💻 **Instalación del Cliente:** [**Guía de Instalación del Frontend (React)**](file:///d:/HackatonFinal/frontend/README.md)
+1. ⚙️ **Instalación del Servidor:** [**Guía de Instalación del Backend (FastAPI)**](./backend/README.md)
+2. 💻 **Instalación del Cliente:** [**Guía de Instalación del Frontend (React)**](./frontend/README.md)

@@ -42,27 +42,31 @@ export default function FinOpsCharts({ stats, logs }) {
 
   const forecast = calculateForecast();
 
-  // Calculate Model Distribution from logs
+  // Calculate Model Distribution from stats
   const calculateModelDistribution = () => {
     let gpt4oCalls = 0;
     let llama3Calls = 0;
     let cacheHits = 0;
+    let totalCalls = 0;
     
-    logs.forEach(log => {
-      // Filtrar logs por departamento si está seleccionado
-      if (selectedDept !== 'global' && log.consumer_id !== selectedDept) return;
+    if (stats && stats.model_stats) {
+      stats.model_stats.forEach(item => {
+        // Filtrar logs por departamento si está seleccionado
+        if (selectedDept !== 'global' && item.consumer_id !== selectedDept) return;
 
-      if (log.saved_by_cache === 1) cacheHits++;
-      else if (log.model_used === 'gpt-4o' || log.model_used.includes('gpt') || log.model_used.includes('claude')) gpt4oCalls++;
-      else if (log.model_used.includes('llama') || log.model_used.includes('mistral')) llama3Calls++;
-    });
+        totalCalls += item.count;
+        if (item.saved_by_cache === 1) cacheHits += item.count;
+        else if (item.model_used === 'gpt-4o' || item.model_used.includes('gpt') || item.model_used.includes('claude')) gpt4oCalls += item.count;
+        else if (item.model_used.includes('llama') || item.model_used.includes('mistral')) llama3Calls += item.count;
+      });
+    }
 
-    const total = (selectedDept === 'global' ? logs.length : logs.filter(l => l.consumer_id === selectedDept).length) || 1;
+    const total = totalCalls || 1;
     return {
       gpt4o: { count: gpt4oCalls, percentage: (gpt4oCalls / total) * 100 },
       llama3: { count: llama3Calls, percentage: (llama3Calls / total) * 100 },
       cache: { count: cacheHits, percentage: (cacheHits / total) * 100 },
-      totalCalls: selectedDept === 'global' ? logs.length : logs.filter(l => l.consumer_id === selectedDept).length
+      totalCalls: totalCalls
     };
   };
 
